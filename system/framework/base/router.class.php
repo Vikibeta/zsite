@@ -847,7 +847,7 @@ class baseRouter
             $this->clientLang = $this->config->default->lang;
         }
 
-        setcookie('lang', $this->clientLang, $this->config->cookieLife, $this->config->webRoot);
+        setcookie('lang', $this->clientLang, $this->config->cookieLife, $this->config->webRoot, '', false, true);
         if(!isset($_COOKIE['lang'])) $_COOKIE['lang'] = $this->clientLang;
 
         return true;
@@ -901,7 +901,7 @@ class baseRouter
             $this->clientTheme = $this->config->default->theme;
         }
 
-        setcookie('theme', $this->clientTheme, $this->config->cookieLife, $this->config->webRoot);
+        setcookie('theme', $this->clientTheme, $this->config->cookieLife, $this->config->webRoot, '', false, true);
         if(!isset($_COOKIE['theme'])) $_COOKIE['theme'] = $this->clientTheme;
 
         return true;
@@ -927,7 +927,7 @@ class baseRouter
             $this->clientDevice = ($mobile->isMobile() and !$mobile->isTablet()) ? 'mobile' : 'desktop';
         }
 
-        setcookie('device', $this->clientDevice, $this->config->cookieLife, $this->config->webRoot);
+        setcookie('device', $this->clientDevice, $this->config->cookieLife, $this->config->webRoot, '', false, true);
         if(!isset($_COOKIE['device'])) $_COOKIE['device'] = $this->clientDevice;
 
         return $this->clientDevice;
@@ -1516,7 +1516,7 @@ class baseRouter
         $code = trim(file_get_contents($fileName));
         if(strpos($code, '<?php') === 0)     $code = ltrim($code, '<?php');
         if(strrpos($code, '?>')   !== false) $code = rtrim($code, '?>');
-        return trim($code);
+        return trim($code) . "\n\n";
     }
 
     //-------------------- 路由相关方法(Routing related methods) --------------------//
@@ -1789,7 +1789,7 @@ class baseRouter
         {
             if(isset($passedParams[$i]))
             {
-                $defaultParams[$key] = strip_tags($passedParams[$i]);
+                $defaultParams[$key] = strip_tags(urldecode($passedParams[$i]));
             }
             else
             {
@@ -2025,9 +2025,11 @@ class baseRouter
         $view->sessionVar  = $this->config->sessionVar;
 
         $this->session->set('random', mt_rand(0, 10000));
+        $this->session->set('rand', $this->session->random);
         $view->sessionName = session_name();
         $view->sessionID   = session_id();
         $view->random      = $this->session->random;
+        $view->rand        = $this->session->random;
         $view->expiredTime = ini_get('session.gc_maxlifetime');
         $view->serverTime  = time();
 

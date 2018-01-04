@@ -242,17 +242,14 @@ $lang->menuGroups->guarder = 'security';
 /* Menu of article module. */
 $lang->article = new stdclass();
 $lang->article->menu = new stdclass();
-$lang->article->menu->browse       = '文章列表|article|admin|';
+$lang->article->menu->browse = '文章列表|article|admin|';
 
 /* Menu of blog module. */
 $lang->blog = new stdclass();
 $lang->blog->menu = new stdclass();
-$lang->blog->menu->browse       = '博客列表|article|admin|type=blog';
+$lang->blog->menu->browse = '博客列表|article|admin|type=blog';
 
-/* Menu of page module. */
 $lang->page = new stdclass();
-$lang->page->menu = new stdclass();
-$lang->page->menu->browse = array('link' => '单页列表|article|admin|type=page', 'alias' => 'create, edit');
 
 $lang->express = new stdclass();
 
@@ -260,11 +257,6 @@ $lang->orderSetting = new stdclass();
 $lang->orderSetting->menu = new stdclass();
 $lang->orderSetting->menu->orderSetting = '设置|product|setting|';
 $lang->orderSetting->menu->express      = '快递|tree|browse|type=express';
-
-$lang->userSetting = new stdclass();
-$lang->userSetting->menu = new stdclass();
-$lang->userSetting->menu->score         = '积分规则|score|setcounts|';
-$lang->userSetting->menu->stateinfo     = '积分结算|score|showstateinfo|';
 
 /* Menu of product module. */
 $lang->product = new stdclass();
@@ -329,7 +321,7 @@ $lang->security->menu->whitelist   = '白名单管理|guarder|setwhitelist|';
 $lang->security->menu->sensitive   = '敏感词设置|site|setsensitive|';
 $lang->security->menu->captcha     = '验证码设置|guarder|setcaptcha|';
 $lang->security->menu->upload      = '附件上传|site|setupload|';
-$lang->security->menu->admin       = '管理员|user|admin|admin=1';
+$lang->security->menu->admin       = array('link' => '管理员|user|admin|admin=1', 'alias' => 'delete,batchdelete');
 $lang->security->menu->group       = array('link' => '分组权限|group|browse|', 'alias' => 'managepriv,managemember');
 $lang->security->menu->log         = '登录日志|user|adminlog|';
 
@@ -397,6 +389,7 @@ $lang->error->email        = '<strong>%s</strong>应当为合法的EMAIL。';
 $lang->error->phone        = '<strong>%s</strong>应当为合法的电话号码。';
 $lang->error->mobile       = '<strong>%s</strong>应当为合法的手机号码。';
 $lang->error->URL          = '<strong>%s</strong>应当为合法的URL。';
+$lang->error->IP           = '<strong>%s</strong>应当为合法的IP。';
 $lang->error->date         = '<strong>%s</strong>应当为合法的日期。';
 $lang->error->account      = '<strong>%s</strong>应当为字母和数字的组合，至少三位';
 $lang->error->passwordsame = '两次密码应当相等。';
@@ -416,7 +409,7 @@ $lang->pager->noRecord     = "暂时没有记录";
 $lang->pager->digest       = "共 <strong>%s</strong> 条记录，%s <strong>%s/%s</strong> &nbsp; ";
 $lang->pager->recPerPage   = "每页 <strong>%s</strong> 条";
 $lang->pager->first        = "<i class='icon-step-backward' title='首页'></i>";
-$lang->pager->pre          = "<i class='icon-play icon-rotate-180' title='上一页'></i>";
+$lang->pager->pre          = "<i class='icon icon-play icon-rotate-180' title='上一页'></i>";
 $lang->pager->next         = "<i class='icon-play' title='下一页'></i>";
 $lang->pager->last         = "<i class='icon-step-forward' title='末页'></i>";
 $lang->pager->locate       = "GO!";
@@ -429,16 +422,16 @@ $lang->date->minute = '分钟';
 $lang->date->day    = '天';
 
 /* The datetime settings. */
-define('DT_DATETIME1',  'Y-m-d H:i:s');
-define('DT_DATETIME2',  'y-m-d H:i');
-define('DT_MONTHTIME1', 'n/d H:i');
-define('DT_MONTHTIME2', 'n月d日 H:i');
-define('DT_DATE1',     'Y年m月d日');
-define('DT_DATE2',     'Ymd');
-define('DT_DATE3',     'Y年m月d日');
-define('DT_DATE4',     'Y-m-d');
-define('DT_TIME1',     'H:i:s');
-define('DT_TIME2',     'H:i');
+if(!defined('DT_DATETIME1'))  define('DT_DATETIME1',  'Y-m-d H:i:s');
+if(!defined('DT_DATETIME2'))  define('DT_DATETIME2',  'y-m-d H:i');
+if(!defined('DT_MONTHTIME1')) define('DT_MONTHTIME1', 'n/d H:i');
+if(!defined('DT_MONTHTIME2')) define('DT_MONTHTIME2', 'n月d日 H:i');
+if(!defined('DT_DATE1'))      define('DT_DATE1',     'Y年m月d日');
+if(!defined('DT_DATE2'))      define('DT_DATE2',     'Ymd');
+if(!defined('DT_DATE3'))      define('DT_DATE3',     'Y年m月d日');
+if(!defined('DT_DATE4'))      define('DT_DATE4',     'Y-m-d');
+if(!defined('DT_TIME1'))      define('DT_TIME1',     'H:i:s');
+if(!defined('DT_TIME2'))      define('DT_TIME2',     'H:i');
 
 /* Keywords for chanzhi. */
 $lang->k  = '开源 cms — 首选蝉知建站系统;';

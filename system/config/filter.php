@@ -4,7 +4,11 @@ $filter->rules   = new stdclass();
 $filter->default = new stdclass(); 
 $filter->stat    = new stdclass(); 
 $filter->article = new stdclass();
+$filter->blog    = new stdclass();
+$filter->page    = new stdclass();
+$filter->product = new stdclass();
 $filter->block   = new stdclass();
+$filter->book    = new stdclass();
 $filter->file    = new stdclass();
 $filter->search  = new stdclass();
 $filter->upgrade = new stdclass();
@@ -109,9 +113,32 @@ $filter->user->adminlog->get['date']         = 'reg::date';
 $filter->user->oauthcallback->get['state']   = 'reg::base64';
 $filter->user->oauthcallback->get['code']    = 'reg::base64';
 $filter->user->oauthcallback->get['referer'] = 'reg::base64';
+$filter->user->delete->get['admin']          = 'reg::number';
+$filter->user->batchdelete->get['admin']     = 'reg::number';
 
 $filter->message->default = new stdclass();
 $filter->message->default->cookie['cmts'] = 'reg::any';
+
+$filter->product->view = new stdclass();
+$filter->product->view->cookie['cmts'] = 'reg::any';
+
+$filter->product->browse = new stdclass();
+$filter->product->browse->cookie['productOrderBy'] = 'array';
+
+$filter->article->view = new stdclass();
+$filter->article->view->cookie['cmts'] = 'reg::any';
+
+$filter->article->browse = new stdclass();
+$filter->article->browse->cookie['articleOrderBy'] = 'array';
+
+$filter->blog->view = new stdclass();
+$filter->blog->view->cookie['cmts'] = 'reg::any';
+
+$filter->book->default = new stdclass();
+$filter->book->default->cookie['cmts'] = 'reg::any';
+
+$filter->page->default = new stdclass();
+$filter->page->default->cookie['cmts'] = 'reg::any';
 
 $filter->thread->default = new stdclass();
 $filter->thread->default->cookie['t'] = 'reg::checked';
@@ -125,6 +152,9 @@ $filter->guarder->validate->cookie['validate'] = 'reg::character';
 $filter->log->record = new stdclass();
 $filter->log->record->cookie['vid'] = 'reg::number';
 
+$filter->log->record->paramValue = array();
+$filter->log->record->paramValue['resolution'] = 'reg::any';
+
 $filter->reply->post = new stdclass();
 $filter->reply->post->cookie['r'] = 'reg::checked';
 
@@ -133,3 +163,7 @@ $filter->wechat->default->get['signature'] = 'reg::base64';
 $filter->wechat->default->get['timestamp'] = 'reg::number';
 $filter->wechat->default->get['nonce']     = 'reg::number';
 $filter->wechat->default->get['echostr']   = 'reg::word';
+
+$filter->source = new stdclass();
+$filter->source->default = new stdclass();
+$filter->source->default->get['page'] = 'reg::base64';

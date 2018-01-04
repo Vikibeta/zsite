@@ -186,6 +186,7 @@ class baseHelper
      */
     static public function import($file)
     {
+        $file = realpath($file);
         if(!is_file($file)) return false;
 
         static $includedFiles = array();
@@ -607,6 +608,26 @@ class baseHelper
 
         return $ip;
     }
+
+    /**
+     * Check whether a file is zip.
+     * 
+     * @param  int    $file 
+     * @static
+     * @access public
+     * @return void
+     */
+    public static function checkZip($file)
+    {
+        $fh = @fopen($file, "r");
+        if(!$fh) return false;
+        $header = fgets($fh, 5);
+        fclose($fh);
+
+        if(strpos($header, 'Rar') !== false) return 'rar';
+        if(strpos($header, 'PK') !== false)  return 'zip';
+        return '';
+    }
 }
 
 //------------------------------- 常用函数。Some tool functions.-------------------------------//
@@ -679,7 +700,7 @@ function a($var)
 function isLocalIP()
 {
     global $config;
-    if(isset($config->islocalIP)) return $config->isLocalIP;
+    if(isset($config->isLocalIP)) return $config->isLocalIP;
     $serverIP = $_SERVER['SERVER_ADDR'];
     if($serverIP == '127.0.0.1') return true;
     if(strpos($serverIP, '10.70') !== false) return false;

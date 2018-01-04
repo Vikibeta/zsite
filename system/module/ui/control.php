@@ -122,11 +122,14 @@ class ui extends control
         }
 
         $this->lang->menuGroups->ui = 'logo';
-        $template = $this->config->template->{$this->app->clientDevice}->name;
-        $theme    = $this->config->template->{$this->app->clientDevice}->theme;
-        $logoSetting = isset($this->config->site->logo) ? json_decode($this->config->site->logo) : new stdclass();;
+        $template    = $this->config->template->{$this->app->clientDevice}->name;
+        $theme       = $this->config->template->{$this->app->clientDevice}->theme;
+        $logoSetting = isset($this->config->site->logo) ? json_decode($this->config->site->logo) : new stdclass();
 
-        $logo = isset($logoSetting->$template->themes->$theme) ? $logoSetting->$template->themes->$theme : (isset($logoSetting->$template->themes->all) ? $logoSetting->$template->themes->all : false);
+        $logo = false;
+        if(isset($logoSetting->$template->themes->all))    $logo = $logoSetting->$template->themes->all;
+        if(isset($logoSetting->$template->themes->$theme)) $logo = $logoSetting->$template->themes->$theme;
+
         if($logo) $logo->extension = $this->loadModel('file')->getExtension($logo->pathname);
 
         unset($this->lang->ui->menu);
@@ -186,6 +189,7 @@ class ui extends control
         $this->app->loadModuleConfig('file');
         $this->app->loadLang('file');
         if(strpos($this->config->site->modules, 'blog') !== false)    $this->app->loadModuleConfig('blog');
+        if(strpos($this->config->site->modules, 'book') !== false)    $this->app->loadModuleConfig('book');
         if(strpos($this->config->site->modules, 'message') !== false) $this->app->loadModuleConfig('message');
 
         if(strpos($this->config->site->modules, 'article') !== false)
@@ -314,7 +318,7 @@ class ui extends control
 
         if($_SERVER['REQUEST_METHOD'] == 'POST')
         {
-            if($canManage['result'] != 'success') $this->send(array('result' => 'fail', 'message' => sprintf($this->lang->guarder->okFileVerify, $canManage['name'], $canManage['content'])));
+            if($canManage['result'] != 'success') $this->send(array('result' => 'fail', 'message' => sprintf($this->lang->guarder->okFileVerify, $canManage['name'])));
 
             if(empty($_FILES))  $this->send(array('result' => 'fail', 'message' => $this->lang->ui->filesRequired));
 
@@ -380,6 +384,33 @@ class ui extends control
         if(!file_exists($packageFile))
         {
             $this->view->error = sprintf($this->lang->package->errorPackageNotFound, $packageFile);
+            die($this->display());
+        }
+
+        $this->app->loadClass('pclzip', true);
+        $zip = new pclzip($packageFile);
+        $licenseFiles = $zip->extract(PCLZIP_OPT_BY_PREG, '/system\/config\/license\/*/');
+
+        $zendEncrypt = false;
+        foreach($licenseFiles as $licenseFile)
+        {
+            if($licenseFile['folder']) continue;
+            if(strpos($licenseFile['filename'], '.txt') === false) 
+            {
+                $zendEncrypt = true;
+                break;
+            }
+        }
+
+        if($zendEncrypt and !extension_loaded('Zend Guard Loader'))
+        {
+            $this->view->error = $this->lang->ui->theme->encryptTip->zend;
+            die($this->display());
+        }
+
+        if(!$zendEncrypt and !empty($licenseFiles) and !extension_loaded('ionCube Loader'))
+        {
+            $this->view->error = $this->lang->ui->theme->encryptTip->ioncube;
             die($this->display());
         }
 
@@ -760,7 +791,7 @@ class ui extends control
         {
             $canManage = array('result' => 'success');
             if(!$this->loadModel('guarder')->verify()) $canManage = $this->loadModel('common')->verifyAdmin();
-            if($canManage['result'] != 'success') $this->send(array('result' => 'fail', 'warning' => sprintf($this->lang->guarder->okFileVerify, $canManage['name'], $canManage['content'])));
+            if($canManage['result'] != 'success') $this->send(array('result' => 'fail', 'warning' => sprintf($this->lang->guarder->okFileVerify, $canManage['name'])));
             $result = $this->ui->writeViewFile($template, $this->post->module, $this->post->file);
             if($result) $this->send(array('result' => 'success', 'message' => $this->lang->saveSuccess, 'locate' => inlink('editTemplate', "moduel=$module&file=$file")));
             $this->send(array('result' => 'fail', 'message' => $this->lang->fail));
@@ -775,7 +806,7 @@ class ui extends control
         $this->view->files         = $this->lang->ui->files->$template;
         $this->view->realFile      = $this->ui->getExtFile($template, $module, $file);
         $this->view->content       = file_get_contents($this->ui->getEffectViewFile($template, $module, $file));
-        $this->view->rawContent    = file_get_contents($this->app->getWwwRoot() . 'template' . DS . $template . DS . $module . DS . $file . '.html.php');
+        $this->view->rawContent    = file_get_contents($this->app->getAppRoot() . 'template' . DS . $template . DS . $module . DS . $file . '.html.php');
 
         $this->display();
     }
@@ -792,6 +823,8 @@ class ui extends control
         $community = $this->loadModel('admin')->getRegisterInfo();
         if(!$community)
         {
+            $this->lang->redirecting = $this->lang->effect->redirecting; 
+
             $this->view->reason = $this->lang->effect->bindCommunity;
             $this->view->locate = helper::createLink('admin', 'register');
             $this->display('common', 'redirect');

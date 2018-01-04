@@ -49,7 +49,7 @@ class threadModel extends model
      * @access public
      * @return array
      */
-    public function getList($board, $orderBy, $pager = null) 
+    public function getList($board, $orderBy, $pager = null, $mode = '') 
     {
         $searchWord = $this->get->searchWord;
         $threads = $this->dao->select('*')->from(TABLE_THREAD)
@@ -57,6 +57,7 @@ class threadModel extends model
             ->beginIf(RUN_MODE == 'front')->andWhere('hidden')->eq('0')->andWhere('addedDate')->le(helper::now())->fi()
             ->beginIf(RUN_MODE == 'front' and $this->config->forum->postReview == 'open')->andWhere('status')->eq('approved')->fi()
             ->beginIf($board)->andWhere('board')->in((array) $board)->fi()
+            ->beginIf($mode == 'latest')->andWhere('link')->eq('')->fi()
             ->beginIf($searchWord)
             ->andWhere('title', true)->like("%{$searchWord}%")
             ->orWhere('content')->like("%{$searchWord}%")
@@ -105,7 +106,7 @@ class threadModel extends model
     {
          $threads = $this->dao->select('*')->from(TABLE_THREAD)
             ->where(1)
-            ->beginIf($this->config->forum->postReview == 'open')
+            ->beginIf(!empty($this->config->forum->postReview) and $this->config->forum->postReview == 'open')
             ->andWhere('status')->eq('wait')
             ->fi()
             ->orderBy('id desc')
@@ -126,34 +127,37 @@ class threadModel extends model
      * @access public
      * @return array
      */
-    public function getLatest($boards, $count)
+    public function getLatest($boards, $count, $pager = null)
     { 
         if(strpos($boards, ',') !== false) $boards = explode(',', $boards);
-        $boards = (array)$boards;
-
-        $parents  = $this->dao->select('*')->from(TABLE_CATEGORY)->where('parent')->eq(0)->andWhere('type')->eq('forum')->fetchAll('id');
-        $children = $this->dao->select('*')->from(TABLE_CATEGORY)->where('parent')->ne(0)->andWhere('type')->eq('forum')->fetchAll('id');
+        $boards = empty($boards) ? array() : (array)$boards;
 
         $subBoards = array();
-        foreach($boards as $board)
+        if(!empty($boards))
         {
-            if(in_array($board, array_keys($parents)))
+            $parents  = $this->dao->select('*')->from(TABLE_CATEGORY)->where('parent')->eq(0)->andWhere('type')->eq('forum')->fetchAll('id');
+            $children = $this->dao->select('*')->from(TABLE_CATEGORY)->where('parent')->ne(0)->andWhere('type')->eq('forum')->fetchAll('id');
+
+            foreach($boards as $board)
             {
-                foreach($children as $child)
+                if(in_array($board, array_keys($parents)))
                 {
-                    if($child->parent == $board) $subBoards[] = $child->id;
+                    foreach($children as $child)
+                    {
+                        if($child->parent == $board) $subBoards[] = $child->id;
+                    }
                 }
-            }
-            else
-            {
-                $subBoards[] = $board;
+                else
+                {
+                    $subBoards[] = $board;
+                }
             }
         }
 
         $this->app->loadClass('pager', true);
         $pager = new pager($recTotal = 0, $recPerPage = $count, 1);
 
-        return $this->getList($subBoards, 'addedDate_desc', $pager);
+        return $this->getList($subBoards, 'addedDate_desc', $pager, 'latest');
     }
 
     /**
@@ -163,10 +167,21 @@ class threadModel extends model
      * @access public
      * @return array
      */
-    public function getSticks($board)
+    public function getSticks($board = 0, $pager = null)
     {
-        $sticks  = $this->dao->select('*')->from(TABLE_THREAD)->where('stick')->eq(2)->orderBy('id desc')->fetchAll();
-        $sticks += $this->dao->select('*')->from(TABLE_THREAD)->where('board')->eq($board)->andWhere('stick')->eq(1)->orderBy('id desc')->fetchAll();
+        $sticks = $this->dao->select('*')->from(TABLE_THREAD)
+            ->where('hidden')->eq('0')
+            ->andWhere('addedDate')->le(helper::now())
+
+            ->andWhere('stick', true)->eq(2)
+            ->orWhere('stick', true)->eq(1)
+            ->beginIF($board)->andWhere('board')->eq($board)->fi()
+            ->markRight(2)
+
+            ->orderBy('id desc')
+            ->page($pager)
+            ->fetchAll();
+
         return $this->setRealNames($sticks);
     }
 
@@ -248,7 +263,6 @@ class threadModel extends model
             ->setForce('repliedDate', $now)
             ->get();
 
-        $thread = $this->loadModel('file')->processImgURL($thread, $this->config->thread->editor->post['id'], $this->post->uid);
         $repeat = $this->loadModel('guarder')->checkRepeat($thread->content, $thread->title); 
         if($repeat) return array('result' => 'fail', 'message' => $this->lang->error->noRepeat);
         
@@ -335,7 +349,7 @@ class threadModel extends model
         $thread = "$thread,";
         $cookie = $this->cookie->t != false ? $this->cookie->t : ',';
         if(strpos($cookie, $thread) === false) $cookie .= $thread;
-        setcookie('t', $cookie , time() + 60 * 60 * 24 * 30);
+        setcookie('t', $cookie , time() + 60 * 60 * 24 * 30, '', '', false, true);
     }
 
     /**
@@ -363,7 +377,6 @@ class threadModel extends model
             ->remove('files,labels, views, replies, stick, hidden')
             ->get();
 
-        $thread = $this->loadModel('file')->processImgURL($thread, $this->config->thread->editor->post['id'], $this->post->uid);
         if(isset($this->config->site->filterSensitive) and $this->config->site->filterSensitive == 'open')
         {
             $dicts = !empty($this->config->site->sensitive) ? $this->config->site->sensitive : $this->config->sensitive;
@@ -463,6 +476,9 @@ class threadModel extends model
 
         /* Update board stats. */
         $this->loadModel('forum')->updateBoardStats($thread->board);
+
+        $thread->hidden = $thread->hidden ? 0 : 1;
+        $this->loadModel('search')->save('thread', $thread);
         return !dao::isError();
     }
 
@@ -487,7 +503,7 @@ class threadModel extends model
             if($file->isImage)
             {
                 if($file->editor) continue;
-                $imagesHtml .= "<li class='file-image file-{$file->extension}'>" . html::a(helper::createLink('file', 'download', "fileID=$file->id&mose=left"), html::image("{$this->config->webRoot}file.php?pathname={$file->pathname}&objectTyp={$file->objectType}&imageSize=&extension={$file->extension}"), "target='_blank' data-toggle='lightbox'");
+                $imagesHtml .= "<li class='file-image file-{$file->extension}'>" . html::a(helper::createLink('file', 'download', "fileID=$file->id&mouse=left"), html::image($this->loadModel('file')->printFileURL($file->pathname, $file->extension, $file->objectType)), "target='_blank' data-toggle='lightbox'");
                 if($canManage) $imagesHtml .= "<span class='file-actions'>" . html::a(helper::createLink('thread', 'deleteFile', "threadID=$thread->id&fileID=$file->id"), "<i class='icon-trash'></i>", "class='deleter'") . '</span>';
                 $imagesHtml .= '</li>';
             }
@@ -619,7 +635,7 @@ EOT;
     {
         /* First check the user is admin or not. */
         if($this->app->user->admin == 'super') return true; 
-
+        
         /* Then check the user is a moderator or not. */
         $user       = ",{$this->app->user->account},";
         $board      = $this->loadModel('tree')->getByID($boardID);
@@ -628,8 +644,7 @@ EOT;
         $moderators = array_merge(explode(',', trim(str_replace(' ', '', $board->moderators), ',')), explode(',', trim(str_replace(' ', '', $parent->moderators), ',')));
         $moderators = implode(',', $moderators);
 
-        $users = ($board->readonly) ? $moderators : $moderators . str_replace(' ', '', $users) . ',';
-        
+        $users = ($board->readonly) ? $moderators : $moderators . ',' . str_replace(' ', '', $users) . ',';
         if(strpos($users, $user) !== false) return true;
 
         return false;

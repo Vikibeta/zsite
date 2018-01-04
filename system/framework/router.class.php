@@ -64,7 +64,36 @@ class router extends baseRouter
      */
     public function getTplRoot()
     {
-        return $this->wwwRoot . 'template' . DS;
+        return $this->appRoot . 'template' . DS;
+    }
+
+    /**
+     * Set client theme.
+     *
+     * @param   string $theme   
+     * @access  public
+     * @return  void
+     */
+    public function setClientTheme($theme = '')
+    {
+        if(isset($this->config->client->theme)) $this->clientTheme = $this->config->client->theme;
+        if(isset($_COOKIE['theme']))            $this->clientTheme = $_COOKIE['theme'];
+        if(!empty($theme))                      $this->clientTheme = $theme;
+
+        if(!empty($this->clientTheme))
+        {
+            $this->clientTheme = strtolower($this->clientTheme);
+            if(!isset($this->lang->themes[$this->clientTheme])) $this->clientTheme = $this->config->default->theme;
+        }    
+        else
+        {
+            $this->clientTheme = $this->config->default->theme;
+        }
+
+        setcookie('theme', $this->clientTheme, $this->config->cookieLife, $this->config->cookiePath, '', false, true);
+        if(!isset($_COOKIE['theme'])) $_COOKIE['theme'] = $this->clientTheme;
+
+        return true;
     }
 
     /**
@@ -100,7 +129,7 @@ class router extends baseRouter
         if($viewType == 'mhtml') $device = 'mobile';
         
         $this->clientDevice = $device;
-        setcookie('device', $this->clientDevice, $this->config->cookieLife, $this->config->webRoot);
+        setcookie('device', $this->clientDevice, $this->config->cookieLife, $this->config->cookiePath, '', false, true);
         $this->cookie->set('device', $this->clientDevice);
         return $this->clientDevice;
     }
@@ -293,7 +322,7 @@ class router extends baseRouter
         $methodName = $this->methodName;
         if(RUN_MODE == 'front') commonModel::processPre($moduleName, $methodName);
 
-        if(RUN_MODE == 'front' and $this->config->cache->type != 'close' and $this->config->cache->cachePage == 'open')
+        if(RUN_MODE == 'front' and $this->server->request_method != 'POST' and $this->config->cache->type != 'close' and $this->config->cache->cachePage == 'open')
         {
             if(strpos($this->config->cache->cachedPages, "$moduleName.$methodName") !== false)
             {
@@ -443,14 +472,10 @@ class router extends baseRouter
         $langCookieVar = RUN_MODE . 'Lang';
         if((RUN_MODE == 'front' or RUN_MODE == 'admin') and $this->config->installed)
         {
-            $enabledLangs  = $this->config->enabledLangs;
-            $defaultLang   = $this->config->defaultLang;
+            $enabledLangs = $this->config->enabledLangs;
+            $defaultLang  = $this->config->defaultLang;
                 
-            if(!empty($enabledLangs))
-            {
-                $enabledLangs = explode(',', $enabledLangs);
-            }
-            
+            if(!empty($enabledLangs)) $enabledLangs = explode(',', $enabledLangs);
             if(isset($defaultLang) && isset($this->config->langs[$defaultLang])) $this->config->default->lang = $defaultLang;
         }
 
@@ -503,7 +528,7 @@ class router extends baseRouter
         if(strpos($this->config->enabledLangs, $this->clientLang) === false) $this->clientLang = $this->config->defaultLang; 
         if(RUN_MODE == 'admin' and isset($this->config->cn2tw) and $this->config->cn2tw and $this->clientLang == 'zh-tw') $this->clientLang = 'zh-cn';
 
-        setcookie($langCookieVar, $this->clientLang, $this->config->cookieLife, $this->config->cookiePath);
+        setcookie($langCookieVar, $this->clientLang, $this->config->cookieLife, $this->config->cookiePath, '', false, true);
         if(!isset($_COOKIE[$langCookieVar])) $_COOKIE[$langCookieVar] = $this->clientLang;
         
         return $this->clientLang;
@@ -519,6 +544,7 @@ class router extends baseRouter
     {
         /* If cache on, clear caches. */
         if($this->config->cache->type != 'close') $this->clearCache();
+        if(RUN_MODE == 'admin') $this->setUpdatedTime();
         parent::shutdown();
     }
     
@@ -532,5 +558,28 @@ class router extends baseRouter
     {
         parent::setSuperVars();
         $_POST = validater::filterConfigPlaceholder($_POST);
+    }
+
+	/**
+	 * Set updatedTime to refresh source.
+	 * 
+	 * @access public
+	 * @return bool
+	 */
+	public function setUpdatedTime()
+	{
+		if(empty(dao::$changedTables)) return true;
+
+		$setting = new stdclass;
+		$setting->owner   = 'system';
+		$setting->module  = 'common';
+		$setting->section = 'site';
+		$setting->key     = 'updatedTime';
+		$setting->value   = time();
+		$setting->lang    = 'all';
+
+        $dao = new dao();
+		$dao->replace(TABLE_CONFIG)->data($setting)->exec();
+        return !dao::isError();
     }
 }

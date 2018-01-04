@@ -92,12 +92,14 @@ class user extends control
 
         if($_POST)
         {
+            if(!$this->user->checkToken($this->post->token, $this->post->fingerprint))  $this->send(array( 'result' => 'fail', 'message' => $this->lang->error->fingerprint));
             $this->user->create();
             if(dao::isError())  $this->send(array('result' => 'fail', 'message' => dao::getError()));
             $this->send(array('result' => 'success', 'message' => $this->lang->saveSuccess, 'locate' => inlink('admin', "user={$this->post->account}")));
         }
         $this->view->title  = $this->lang->user->create;
         $this->view->groups = $this->loadModel('group')->getPairs();
+        $this->view->token = $this->user->getToken();
         $this->display();
     }
 
@@ -112,11 +114,11 @@ class user extends control
     {
         dao::$changedTables[] = TABLE_CONFIG;
 
-        if($referer == '' && strpos($_SERVER['HTTP_REFERER'], 'deny') === false && strpos($_SERVER['HTTP_REFERER'], 'register') === false && strpos($_SERVER['HTTP_REFERER'], 'login') === false)
+        if($referer == '' && isset($_SERVER['HTTP_REFERER']) && strpos($_SERVER['HTTP_REFERER'], 'deny') === false && strpos($_SERVER['HTTP_REFERER'], 'register') === false && strpos($_SERVER['HTTP_REFERER'], 'login') === false)
         {
             $this->referer = urlencode($_SERVER['HTTP_REFERER']);
         }
-        elseif(RUN_MODE == "front" && (strpos($_SERVER['HTTP_REFERER'], 'register') || strpos($_SERVER['HTTP_REFERER'], 'login')))
+        elseif(RUN_MODE == "front" && isset($_SERVER['HTTP_REFERER']) && (strpos($_SERVER['HTTP_REFERER'], 'register') || strpos($_SERVER['HTTP_REFERER'], 'login')))
         {
             $this->referer = $this->createLink('user', 'control');
         }
@@ -151,7 +153,7 @@ class user extends control
                     $this->send(array('result' => 'success', 'locate' => $this->createLink($this->config->default->module)));
                 }
 
-                if($this->referer and strpos($loginLink . $denyLink . $regLink, $this->referer) === false and strpos($this->referer, $loginLink) === false) $this->locate($this->referer);
+                if($this->referer and strpos($loginLink . $denyLink . $regLink, $this->referer) === false and strpos($this->referer, $loginLink) === false) $this->locate(urldecode($this->referer));
                 $this->locate($this->createLink($this->config->default->module));
                 exit;
             }
@@ -494,12 +496,9 @@ class user extends control
     public function delete($account)
     {
         $this->app->loadLang('guarder');
+
         /* Change menu when browse all admin user. */
-        if($this->get->admin == 1)
-        {
-            $this->lang->user->menu = $this->lang->security->menu;
-            $this->lang->menuGroups->user = 'security';
-        }
+        if($this->get->admin == 1) $this->lang->menuGroups->user = 'security';
 
         if($_POST)
         {
@@ -530,12 +529,9 @@ class user extends control
     public function batchDelete()
     {
         $this->app->loadLang('guarder');
+
         /* Change menu when browse all admin user. */
-        if($this->get->admin == 1)
-        {
-            $this->lang->user->menu = $this->lang->security->menu;
-            $this->lang->menuGroups->user = 'security';
-        }
+        if($this->get->admin == 1) $this->lang->menuGroups->user = 'security';
 
         if($_POST)
         {
@@ -571,11 +567,7 @@ class user extends control
     public function admin()
     {
         /* Change menu when browse all admin user. */
-        if($this->get->admin == 1)
-        {
-            $this->lang->user->menu = $this->lang->security->menu;
-            $this->lang->menuGroups->user = 'security';
-        }
+        if($this->get->admin == 1) $this->lang->menuGroups->user = 'security';
         
         $get = fixer::input('get')
             ->setDefault('recTotal', 0)
@@ -764,6 +756,8 @@ class user extends control
      */
     public function checkReset($reset)
     {
+        if(!$this->user->checkReset($reset)) header('location:/index.html'); 
+
         if(!empty($_POST))
         {
             $this->user->checkPassword();
@@ -773,18 +767,11 @@ class user extends control
             $this->send(array('result' => 'success', 'message' => $this->lang->user->resetSuccess, 'locate' => inlink('login')));
         }
 
-        if(!$this->user->checkReset($reset))
-        {
-            header('location:index.html'); 
-        }
-        else
-        {
-            $this->view->title = $this->lang->user->resetPassword->common;
-            $this->view->reset = $reset;
-            $this->view->mobileURL  = helper::createLink('user', 'checkReset', "reset=$reset", '', 'mhtml');
-            $this->view->desktopURL = helper::createLink('user', 'checkReset', "reset=$reset", '', 'html');
-            $this->display();
-        }
+        $this->view->title = $this->lang->user->resetPassword->common;
+        $this->view->reset = $reset;
+        $this->view->mobileURL  = helper::createLink('user', 'checkReset', "reset=$reset", '', 'mhtml');
+        $this->view->desktopURL = helper::createLink('user', 'checkReset', "reset=$reset", '', 'html');
+        $this->display();
     }
 
     /**
@@ -893,7 +880,7 @@ class user extends control
             {
                 $default = $this->config->user->default;    // Redefine the default module and method in dashbaord scene.
 
-                if($this->post->referer != false) $this->send(array('result'=>'success', 'locate'=> helper::safe64Decode($this->post->referer)));
+                if($this->post->referer != false) $this->send(array('result'=>'success', 'locate'=> urldecode(helper::safe64Decode($this->post->referer))));
                 if($this->post->referer == false) $this->send(array('result'=>'success', 'locate'=> $this->createLink($default->module, $default->method)));
                 exit;
             }
@@ -924,7 +911,7 @@ class user extends control
                 if($this->user->bindOAuthAccount($this->post->account, $this->session->oauthProvider, $this->session->openID))
                 {
                     $default = $this->config->user->default;
-                    if($this->post->referer != false) $this->send(array('result'=>'success', 'locate'=> helper::safe64Decode($this->post->referer)));
+                    if($this->post->referer != false) $this->send(array('result'=>'success', 'locate'=> urldecode(helper::safe64Decode($this->post->referer))));
                     if($this->post->referer == false) $this->send(array('result'=>'success', 'locate'=> $this->createLink($default->module, $default->method)));
                 }
                 else
@@ -1005,7 +992,6 @@ class user extends control
      */
     public function adminLog()
     {
-        $this->lang->user->menu = $this->lang->security->menu;
         $this->lang->menuGroups->user = 'security';
 
         $get = fixer::input('get')

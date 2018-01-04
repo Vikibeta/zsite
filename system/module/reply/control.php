@@ -54,7 +54,6 @@ class reply extends control
         $pager   = new pager($recTotal, $recPerPage, $pageID);
         $replies = $this->reply->getList($orderBy, $pager);
 
-        $this->lang->reply->menu = $this->lang->forum->menu;
         if($this->session->currentGroup == 'home') $this->lang->menuGroups->reply = 'forumreply';
         if($this->session->currentGroup != 'home') $this->lang->menuGroups->reply = 'forum';
 
@@ -77,7 +76,6 @@ class reply extends control
 
         /* Judge current user has priviledge to edit the reply or not. */
         $reply = $this->reply->getByID($replyID);
-        $reply = $this->loadModel('file')->replaceImgURL($reply, $this->config->reply->editor->edit['id']);
         if(!$reply) die(js::locate('back'));
 
         $thread = $this->loadModel('thread')->getByID($reply->thread);
@@ -100,7 +98,7 @@ class reply extends control
             if(dao::isError()) $this->send(array('result' => 'fail', 'message' => dao::getError()));
 
             $urlInfo = $this->reply->getPosition($replyID);
-            if($this->config->requestType == 'GET') $locate = helper::createLink('thread', 'view', "threadID=$thread->id&" . $urlInfo);
+            if($this->config->requestType == 'GET') $locate = helper::createLink('thread', 'view', "threadID=$thread->id" . $urlInfo);
             if($this->config->requestType != 'GET') $locate = helper::createLink('thread', 'view', "threadID=$thread->id", $urlInfo);
 
             $this->send(array('result' => 'success', 'message' => $this->lang->saveSuccess, 'locate' => $locate));

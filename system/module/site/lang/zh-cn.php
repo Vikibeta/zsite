@@ -12,6 +12,7 @@
 $lang->site->common        = "站点";
 
 $lang->site->type             = '站点类型';
+$lang->site->tidy             = '代码美化';
 $lang->site->requestType      = '访问类型';
 $lang->site->status           = '站点状态';
 $lang->site->pauseTip         = '暂停提示';
@@ -71,6 +72,7 @@ $lang->site->setsensitive     = '敏感词设置';
 $lang->site->filterSensitive  = '敏感词过滤';
 $lang->site->setBlacklist     = '黑名单管理';
 $lang->site->mobileTemplate   = '移动模板';
+$lang->site->gzipOutput       = 'gzip输出';
 $lang->site->score            = '积分';
 $lang->site->setCounts        = '积分规则';
 $lang->site->front            = '网站浏览';
@@ -121,6 +123,10 @@ $lang->site->agreementList['close'] = '关闭';
 $lang->site->resetPasswordList = array();
 $lang->site->resetPasswordList['open']  = '开启';
 $lang->site->resetPasswordList['close'] = '关闭';
+
+$lang->site->tidyOptions = array();
+$lang->site->tidyOptions['open']  = '开启';
+$lang->site->tidyOptions['close'] = '关闭';
 
 $lang->site->checkIPList = array();
 $lang->site->checkIPList['open']  = '开启';
@@ -173,6 +179,9 @@ $lang->site->frontList['guest'] = '不需要登录';
 
 $lang->site->mobileTemplateList['open']  = '启用';
 $lang->site->mobileTemplateList['close'] = '禁用';
+
+$lang->site->gzipOutputList['open']  = '启用';
+$lang->site->gzipOutputList['close'] = '禁用';
 
 $lang->site->scoreList['open']  = '启用';
 $lang->site->scoreList['close'] = '禁用';
@@ -238,6 +247,7 @@ $lang->site->customizableList = new stdclass();
 $lang->site->customizableList->article = '文章列表数量';
 $lang->site->customizableList->product = '产品列表数量';
 $lang->site->customizableList->blog    = '博客列表数量';
+$lang->site->customizableList->book    = '手册列表数量';
 $lang->site->customizableList->forum   = '论坛列表数量';
 $lang->site->customizableList->reply   = '回帖列表数量';
 $lang->site->customizableList->message = '留言列表数量';
@@ -273,3 +283,5 @@ $lang->site->fileAuthority = '需要修改写入文件的权限，Linux下的运
 $lang->site->fileRequired  = '需要创建文件，Linux下的运行命令为<code>%s</code>';
 
 $lang->site->wechatLoginTip = '使用微信登录需要开启PHP的openssl扩展';
+$lang->site->noZlib         = '启用gz输出需要开启PHP的zlib扩展';
+$lang->site->gzipOn         = 'apache已经安装gzip扩展，无需再启用gzip输出';

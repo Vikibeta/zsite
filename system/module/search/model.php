@@ -103,11 +103,14 @@ class searchModel extends model
     {
         $fields = $this->config->search->fields->{$objectType};
 
+        $status = !empty($object->{$fields->status}) ? $object->{$fields->status} : 'normal' ;
+        if($objectType == 'thread' and $status == 'approved' and !$object->hidden) $status = 'normal';
+
         $index = new stdclass();
         $index->objectID   = $object->{$fields->id};
         $index->objectType = $objectType;
         $index->title      = $object->{$fields->title};
-        $index->status     = !empty($object->{$fields->status}) ? $object->{$fields->status} : 'normal' ;
+        $index->status     = $status;
         $index->addedDate  = isset($object->{$fields->addedDate}) ? $object->{$fields->addedDate} : '0000-00-00 00:00:00';
         $index->editedDate = isset($object->{$fields->editedDate}) ? $object->{$fields->editedDate} : '0000-00-00 00:00:00';
 
@@ -392,6 +395,15 @@ class searchModel extends model
                     ->limit($limit)
                     ->fetchAll('id');
 
+                $attributes = $this->dao->select('*')->from(TABLE_PRODUCT_CUSTOM)->where('product')->in(array_keys($products))->fetchGroup('product');
+
+                foreach($products as $product)
+                {
+                    $product->attributes = '';
+                    $productAttributes = isset($attributes[$product->id]) ? $attributes[$product->id] : array();
+                    foreach($productAttributes as $attribute) $product->attributes .= $attribute->value;
+                }
+
                 if(empty($products))
                 {
                     $type   = $this->config->search->buildOrder['product'];
@@ -449,7 +461,9 @@ class searchModel extends model
             {
                 $threads = $this->dao->select("*, 'normal' as status")
                     ->from(TABLE_THREAD)
-                    ->beginIF($lastID)->where('id')->gt($lastID)->fi()
+                    ->where('status')->eq('approved')
+                    ->andWhere('hidden')->eq(0)
+                    ->beginIF($lastID)->andWhere('id')->gt($lastID)->fi()
                     ->limit($limit)
                     ->fetchAll('id');
 

@@ -185,11 +185,12 @@ class orderModel extends model
     {
         $address = new stdclass();
         $this->loadModel('address');
+        $post = fixer::input('post')->get();
         $address->account = $this->app->user->account;
-        $address->address = $this->post->address;
-        $address->contact = $this->post->contact;
-        $address->phone   = $this->post->phone;
-        $address->zipcode = $this->post->zipcode;
+        $address->address = $post->address;
+        $address->contact = $post->contact;
+        $address->phone   = $post->phone;
+        $address->zipcode = $post->zipcode;
 
         $this->dao->insert(TABLE_ADDRESS)->data($address)->check('phone', 'phone')->batchCheck($this->config->address->require->create, 'notempty')->exec();
         if(dao::isError()) return false;
@@ -264,14 +265,14 @@ class orderModel extends model
         $alipayConfig->notifyURL = commonModel::getSysURL() . $notifyURL;
         $alipayConfig->returnURL = commonModel::getSysURL() . $returnURL;
         $alipayConfig->showURL   = $clientDevice == 'mobile' ? commonModel::getSysURL() . $showURL : ''; 
-        $alipayConfig->pid       = $this->config->alipay->pid;
-        $alipayConfig->key       = $this->config->alipay->key;
-        $alipayConfig->email     = $this->config->alipay->email;
+        $alipayConfig->pid       = isset($this->config->alipay->pid)   ? $this->config->alipay->pid : '';
+        $alipayConfig->key       = isset($this->config->alipay->key)   ? $this->config->alipay->key : '';
+        $alipayConfig->email     = isset($this->config->alipay->email) ? $this->config->alipay->email : '';
         $alipayConfig->device    = $clientDevice; 
         
         $alipay  = new alipay($alipayConfig);
         $subject = $this->getSubject($order->id);
-        $extend  = "TRANS_MEMO^{$this->app->siteCode}/{$order->type}/{$this->app->user->account}/{$this->app->user->company}|ISV^";
+        $extend  = "TRANS_MEMO^{$this->app->siteCode}/{$order->type}/{$this->app->user->account}/{$this->app->user->realname}/{$this->app->user->company}|ISV^";
 
         return $alipay->createPayLink($this->getHumanOrder($order->id),  $subject, $order->amount, $body = '', $extra = '', $extend);
     }
@@ -545,11 +546,12 @@ class orderModel extends model
         $this->commonLink = array();
         $this->commonLink['savePayment'] = true;
         $this->commonLink['cancelLink']  = true;
+
         $toggle = $btnLink ? '' : "data-toggle='modal'";
 
         if(RUN_MODE == 'admin')
         {
-            $class  = $btnLink ? 'btn btn-ajax-loader' : '';
+            $class = $btnLink ? 'btn btn-ajax-loader' : '';
             
             /* View order link */ 
             if(!$btnLink) echo html::a(inlink('view', "orderID=$order->id&btnLink=false"), $this->lang->order->view, $toggle);
@@ -580,7 +582,7 @@ class orderModel extends model
                 /* Cancel link. */
                 $disabled = ($order->deliveryStatus == 'not_send' and $order->payStatus == 'not_paid' and $order->status == 'normal') ? '' : "disabled='disabled'";
                 $class    = $isMobile ? "  btn btn-link " : "";
-                echo $disabled ? '' : html::a(helper::createLink('order', 'cancel', "orderID=$order->id"), $this->lang->order->cancel, "class='cancelLink {$class}'" );
+                echo $disabled ? '' : html::a(helper::createLink('order', 'cancel', "orderID=$order->id"), $this->lang->order->cancel, "data-rel='" . helper::createLink('order', 'cancel', "orderID={$order->id}") . "' class='cancelLink {$class}'" );
             }
 
             /* Delete order link. */
@@ -603,6 +605,7 @@ class orderModel extends model
     public function printShopActions($order, $btnLink = false)
     {
         $toggle = $btnLink ? '' : "data-toggle='modal'";
+
         if(RUN_MODE == 'admin' )
         {
             $class = $btnLink ? 'btn btn-ajax-loader' : '';
@@ -630,8 +633,7 @@ class orderModel extends model
 
         if(RUN_MODE == 'front' and $order->status == 'normal')
         {
-            $isMobile = ($this->app->clientDevice == 'mobile');
-            $class = $isMobile ? "  btn btn-link " : "";
+            $class = $this->app->clientDevice == 'mobile' ? " btn btn-link " : "";
              
             /* Pay link. */
             $disabled = ($order->payment != 'COD' and $order->payStatus == 'not_paid' and $order->status != 'canceled') ? '' : "disabled='disabled'";
@@ -643,7 +645,7 @@ class orderModel extends model
 
             /* Track link. */
             $disabled = ($order->deliveryStatus != 'not_send') ? '' : "disabled='disabled'";
-            echo $disabled ? '' : html::a(inlink('track', "orderID={$order->id}"), $this->lang->order->track, "data-rel='" . helper::createLink('order', 'confirmDelivery', "orderID=$order->id") . "' data-toggle='modal' class='$class'");
+            echo $disabled ? '' : html::a(inlink('track', "orderID={$order->id}"), $this->lang->order->track, "data-rel='" . helper::createLink('order', 'track', "orderID=$order->id") . "' data-toggle='modal' class='$class'");
 
             /* Refund link. */
             $disabled = ($order->payStatus == 'paid' and $order->deliveryStatus != 'confirmed') ? '' : "disabled='disabled'";
@@ -667,8 +669,7 @@ class orderModel extends model
     {
         if(RUN_MODE == 'front' and $order->status == 'normal') 
         {
-            $isMobile = ($this->app->clientDevice == 'mobile');
-            $class    = $isMobile ? "  btn btn-link " : "";
+            $class = $this->app->clientDevice == 'mobile' ? " btn btn-link " : "";
             
             /* Pay link. */
             $disabled = ($order->payment != 'COD' and $order->payStatus != 'paid') ? '' : "disabled='disabled'";

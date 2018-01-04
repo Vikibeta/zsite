@@ -20,7 +20,7 @@ class article extends control
     public function index()
     {   
         $category = $this->loadModel('tree')->getFirst('article');
-        if($category) $this->locate(inlink('browse', "category=$category->id"));
+        if($category) $this->locate(inlink('browse', "category=$category->id", array('category' => $category->alias)));
         $this->locate($this->createLink('index'));
     }   
 
@@ -35,45 +35,33 @@ class article extends control
     public function browse($categoryID = 0, $pageID = 1)
     {   
         $category = $this->loadModel('tree')->getByID($categoryID, 'article');
+        if(!$category) die($this->fetch('errors', 'index'));
+
+        $categoryID = is_numeric($categoryID) ? $categoryID : zget($category, 'id', 0);
+        $this->session->set('articleCategory', $categoryID);
 
         if($category && $category->link) helper::header301($category->link);
+
+        $orderBy = isset($_COOKIE['articleOrderBy'][$categoryID]) ? $_COOKIE['articleOrderBy'][$categoryID] : 'addedDate_desc';
 
         $recPerPage = !empty($this->config->site->articleRec) ? $this->config->site->articleRec : $this->config->article->recPerPage;
         $this->app->loadClass('pager', $static = true);
         $pager = new pager($recTotal = 0, $recPerPage, $pageID);
 
-        $categoryID = is_numeric($categoryID) ? $categoryID : ($category ? $category->id : 0);
-        $orderBy    = zget($_COOKIE, 'articleOrderBy' . $categoryID, 'addedDate_desc');
-        $orderField = str_replace('_asc', '', $orderBy);
-        $orderField = str_replace('_desc', '', $orderField);
-        if(!in_array($orderField, array('id', 'views', 'addedDate'))) $orderBy = 'addedDate_desc';
-
-        $families   = $categoryID ? $this->tree->getFamily($categoryID, 'article') : '';
-        $sticks     = $this->article->getSticks($families, 'article');
-        $articles   = $this->article->getList('article', $families, $orderBy, $pager);
-        $articles   = $sticks + $articles;
+        $families = $categoryID ? $this->tree->getFamily($categoryID, 'article') : '';
+        $sticks   = $this->article->getSticks($families, 'article');
+        $articles = $this->article->getList('article', $families, $orderBy, $pager);
+        $articles = $sticks + $articles;
 
         if(commonModel::isAvailable('message')) $articles = $this->article->computeComments($articles, 'article');
-
-        if($category)
-        {
-            $title    = $category->name;
-            $keywords = (!empty($category->keywords) ? ($category->keywords . ' - ') : '') . $this->config->site->keywords;
-            $desc     = strip_tags($category->desc);
-            $this->session->set('articleCategory', $category->id);
-        }
-        else
-        {
-            die($this->fetch('errors', 'index'));
-        }
 
         $articleList = '';
         foreach($articles as $article) $articleList .= $article->id . ',';
         $this->view->articleList = $articleList;
         
-        $this->view->title      = $title;
-        $this->view->keywords   = trim($keywords);
-        $this->view->desc       = $desc;
+        $this->view->title      = $category->name;
+        $this->view->keywords   = trim($category->keywords);
+        $this->view->desc       = strip_tags($category->desc);
         $this->view->category   = $category;
         $this->view->articles   = $articles;
         $this->view->pager      = $pager;
@@ -85,18 +73,18 @@ class article extends control
         $this->view->layouts    = $this->loadModel('block')->getPageBlocks('article', 'browse', $category->id);
         $this->view->sideGrid   = $this->loadModel('ui')->getThemeSetting('sideGrid', 3);
         $this->view->sideFloat  = $this->ui->getThemeSetting('sideFloat', 'right');
-
+    
         $this->display();
     }
     
     /**
      * Browse article in admin.
      * 
-     * @param string $type        the article type
-     * @param int    $categoryID  the category id
-     * @param int    $recTotal 
-     * @param int    $recPerPage 
-     * @param int    $pageID 
+     * @param  string $type        the article type
+     * @param  int    $categoryID  the category id
+     * @param  int    $recTotal 
+     * @param  int    $recPerPage 
+     * @param  int    $pageID 
      * @access public
      * @return void
      */
@@ -106,12 +94,10 @@ class article extends control
         {
             $type = 'submission';
             $this->lang->menuGroups->article = $type;
-            unset($this->lang->article->menu);
             $this->view->title = $this->lang->submission->common;
         }
         else
         {
-            $this->lang->article->menu = isset($this->lang->$type->menu) ? $this->lang->$type->menu : null;
             $this->lang->menuGroups->article = $type;
             $this->view->title = $this->lang->$type->common;
         }
@@ -129,7 +115,6 @@ class article extends control
             $this->view->treeModuleMenu = $this->loadModel('tree')->getTreeMenu($type, 0, array('treeModel', 'createAdminLink'));
             $this->view->treeManageLink = html::a(helper::createLink('tree', 'browse', "type={$type}"), $this->lang->tree->manage);
         }
-        if($type == 'page') unset($this->lang->article->menu);
 
         $this->loadModel('block');
 
@@ -153,7 +138,6 @@ class article extends control
      */
     public function create($type = 'article', $categoryID = '')
     {
-        $this->lang->article->menu = $this->lang->{$type}->menu;
         $this->lang->menuGroups->article = $type;
 
         $categories = $this->loadModel('tree')->getOptionMenu($type, 0, $removeRoot = true);
@@ -223,7 +207,6 @@ class article extends control
     {
         if(!commonModel::isAvailable('submission')) die();
         $article = $this->article->getByID($articleID);
-        $article = $this->loadModel('file')->replaceImgURL($article, $this->config->article->editor->modify['id']);
 
         if(RUN_MODE == 'front' and $article->addedBy != $this->app->user->account) return false;
 
@@ -295,11 +278,9 @@ class article extends control
             if($node) $this->locate($this->createLink('book', 'edit', "nodeID=$node->id"));
         }
 
-        $this->lang->article->menu = $this->lang->$type->menu;
         $this->lang->menuGroups->article = $type;
 
         $article  = $this->article->getByID($articleID, $replaceTag = false);
-        $article = $this->loadModel('file')->replaceImgURL($article, $this->config->article->editor->edit['id']);
 
         $categories = $this->loadModel('tree')->getOptionMenu($type, 0, $removeRoot = true);
         if(empty($categories) && $type != 'page')
@@ -364,13 +345,10 @@ class article extends control
         $category = $this->loadModel('tree')->getByID($category);
         $this->session->set('articleCategory', $category->id);
 
-        $title    = $article->title . ' - ' . $category->name;
-        $keywords = (!empty($article->keywords) ? ($article->keywords . ' - ') : '') . (!empty($category->keywords) ? ($category->keywords . ' - ') : '') . $this->config->site->keywords;
-        $desc     = strip_tags($article->summary);
         
-        $this->view->title       = $title;
-        $this->view->keywords    = $keywords;
-        $this->view->desc        = $desc;
+        $this->view->title       = $article->title . ' - ' . $category->name;
+        $this->view->keywords    = trim(trim($article->keywords . ' - ' . $category->keywords), '-');
+        $this->view->desc        = strip_tags($article->summary);
         $this->view->article     = $article;
         $this->view->prevAndNext = $this->article->getPrevAndNext($article, $category->id);
         $this->view->category    = $category;
@@ -533,7 +511,7 @@ class article extends control
         $pager = new pager($recTotal, $recPerPage, $pageID);
 
         $articles = $this->dao->select('t1.*,t2.id as bookID')->from(TABLE_ARTICLE)->alias('t1')
-            ->leftJoin(TABLE_BOOK)->alias('t2')->on('t1.id = t2.id')
+            ->leftJoin(TABLE_BOOK)->alias('t2')->on('t1.id = t2.articleID')
             ->where('t1.submission')->ne(0)
             ->andWhere('t1.addedBy')->eq($this->app->user->account)
             ->orderBy('id_desc')

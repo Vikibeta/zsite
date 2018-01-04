@@ -72,9 +72,26 @@ class bookModel extends model
      * @access public
      * @return array
      */
-    public function getBookList()
+    public function getBookList($pager = null)
     {
-        return $this->dao->select('*')->from(TABLE_BOOK)->where('type')->eq('book')->orderBy('`order`, id')->fetchAll('id');
+        return $this->dao->select('*')->from(TABLE_BOOK)->where('type')->eq('book')->orderBy('`order`, id')->page($pager)->fetchAll('id');
+    }
+
+    /**
+     * Get latest book list.
+     * 
+     * @param  int    $limit 
+     * @param  string    $orderBy 
+     * @access public
+     * @return array
+     */
+    public function getLatestBookList($limit, $orderBy)
+    {
+        return $this->dao->select('*')->from(TABLE_BOOK)
+            ->where('type')->eq('book')
+            ->orderBy($orderBy)
+            ->limit($limit)
+            ->fetchAll('id');
     }
 
     /**
@@ -266,22 +283,18 @@ class bookModel extends model
     }
 
     /**
-     * Get book and article list.
+     * Get all (books and articles) for sitemap.
      * 
-     * @param  string $orderBy 
-     * @param  int $limit 
      * @access public
-     * @return void
+     * @return array
      */
-    public function getBookAndArticleList($orderBy = 'id_desc', $limit = '100')
+    public function getAll()
     {
         $books    = $this->getBookList();
         $articles = $this->dao->select('*')->from(TABLE_BOOK)
             ->where('type')->eq('article')
             ->andWhere('addedDate')->le(helper::now())
             ->andWhere('status')->eq('normal')
-            ->orderBy($orderBy)
-            ->limit($limit)
             ->fetchAll();
 
         foreach($articles as $article)
@@ -356,11 +369,10 @@ class bookModel extends model
     public function getNodeByID($nodeID, $replaceTag = true)
     {
         $node = $this->dao->select('*')->from(TABLE_BOOK)->where('id')->eq($nodeID)->fetch();
-        $node = $this->loadModel('file')->replaceImgURL($node, 'content');
         if(!$node) $node = $this->dao->select('*')->from(TABLE_BOOK)->where('alias')->eq($nodeID)->fetch();
         if(!$node) return false;
                 
-        $node->origins = $this->dao->select('id, type, alias, title, summary, content')->from(TABLE_BOOK)->where('id')->in($node->path)->orderBy('grade')->fetchAll('id');
+        $node->origins = $this->dao->select('id, type, alias, title, `keywords`, summary, content')->from(TABLE_BOOK)->where('id')->in($node->path)->orderBy('grade')->fetchAll('id');
         $node->book    = current($node->origins);
         $node->files   = $this->loadModel('file')->getByObject('book', $nodeID);
         $node->content = $replaceTag ? $this->loadModel('tag')->addLink($node->content) : $node->content;
@@ -543,7 +555,6 @@ class bookModel extends model
             ->setForce('keywords', seo::unify($this->post->keywords, ','))
             ->get();
 
-        $book = $this->loadModel('file')->processImgURL($book, $this->config->book->editor->create['id'], $this->post->uid);
         $this->dao->insert(TABLE_BOOK)
             ->data($book, $skip = 'uid')
             ->autoCheck()
@@ -629,6 +640,8 @@ class bookModel extends model
             if($node->type == 'article')
             {
                 $article = $this->dao->select('*')->from(TABLE_BOOK)->where('id')->eq($nodeID)->fetch();
+                $book    = $this->getBookByNode($article);
+                $article->book = $book->alias;
                 $this->loadModel('search')->save('book', $article);
             }
         }
@@ -731,7 +744,6 @@ class bookModel extends model
             }
         }
 
-        $node = $this->loadModel('file')->processImgURL($node, $this->config->book->editor->edit['id'], $this->post->uid);
         $this->dao->update(TABLE_BOOK)
             ->data($node, $skip = 'uid,referer,book,isLink')
             ->autoCheck()
@@ -757,6 +769,7 @@ class bookModel extends model
             if(dao::isError()) return false;
         }
         $book = $this->getNodeByID($nodeID);
+        $book->book = $book->book->alias;
         return $this->loadModel('search')->save('book', $book);
     }
 

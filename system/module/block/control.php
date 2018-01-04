@@ -43,7 +43,6 @@ class block extends control
         $this->block->loadTemplateLang($template);
 
         $this->lang->menuGroups->block = 'ui';
-        $this->lang->block->menu = $this->lang->theme->menu;
 
         $this->view->title    = $this->lang->block->pages;
         $this->view->plans    = $this->block->getPlans($template);
@@ -95,6 +94,7 @@ class block extends control
         $template = $this->config->template->{$this->app->clientDevice}->name;
         $theme    = $this->config->template->{$this->app->clientDevice}->theme;
         $this->block->loadTemplateLang($template);
+        $this->app->loadLang('ui');
 
         if(!$blockID) $this->locate($this->inlink('admin'));
 

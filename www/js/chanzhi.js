@@ -90,10 +90,10 @@ $.extend(
                     {
                         /* Define the id of the error objecjt and it's label. */
                         var errorOBJ   = '#' + key;
-                        var errorLabel =  key + 'Label';
+                        var errorLabel = key + 'Label';
 
                         /* Create the error message. */
-                        var errorMSG = '<span id="'  + errorLabel + '" for="' + key  + '"  class="text-error red">';
+                        var errorMSG = '<span id="' + errorLabel + '" for="' + key + '" class="text-error red">';
                         errorMSG += $.type(value) == 'string' ? value : value.join(';');
                         errorMSG += '</span>';
 
@@ -592,7 +592,7 @@ function setRequiredFields()
  */
 function selectLang(lang)
 {
-    $.cookie(config.runMode + 'Lang', lang, {expires:config.cookieLife, path:config.webRoot});
+    $.cookie(config.runMode + 'Lang', lang, {expires:config.cookieLife, path:config.cookiePath});
     location.href = removeAnchor(location.href);
 }
 
@@ -653,7 +653,6 @@ function setGo2Top()
  */
 +(function($)
 {
-
     $.fn.refreshRandomBlock = function()
     {
         return $(this).each(function()
@@ -718,7 +717,6 @@ function setGo2Top()
     {
         $blocks = $blocks || $(this);
         options = $.extend({}, $blocks.data(), options);
-
 
         var winWidth = $(window).width();
         if(!options.force && winWidth == $blocks.data('tidyWinWidth')) return;

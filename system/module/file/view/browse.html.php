@@ -68,7 +68,7 @@ if(!empty($files))
         $file->ext       = $file->extension;
         $file->addedDate = substr($file->addedDate, 2, 14);
         $file->remoteId  = $file->id;
-        if($file->isImage) $file->previewImage = "{$config->webRoot}file.php?pathname={$file->pathname}&objectType={$file->objectType}&imageSize=smallURL&extension={$file->extension}";
+        if($file->isImage) $file->previewImage = $this->file->printFileURL($file->pathname, $file->extension, $file->objectType, 'smallURL');
         $filesArray[] = $file;
     }
 }
@@ -111,7 +111,11 @@ $('#uploader').uploader(
         $file.find('.file-icon').html(this.createFileIcon(file)).css('color', 'hsl(' + $.zui.strCode(file.type || file.ext) + ', 70%, 40%)');
         if(file.percent !== undefined) $file.find('.file-progress-bar').css('width', file.percent + '%');
         var $status = $file.find('.file-status').attr('title', this.lang[status]);
-        $status.find('.text').text(status == 'uploading' ? (file.percent + '%') : ((status == 'failed') ? that.lang[status] : ''));
+
+        if(status == 'uploading') $statusText = file.percent + '%';
+        if(status != 'uploading') $statusText = status == 'failed' ? that.lang[status] : '';
+        $status.find('.text').text($statusText);
+
         $file.find('a.btn-download-file, a.file-name').attr('href', downloadUrl);
         if($.fn.tooltip) $file.find('[data-toggle="tooltip"]').tooltip('fixTitle');
         sortFile();
@@ -159,7 +163,6 @@ $('#uploader').uploader(
             $.ajustModalPosition('fit', $modal);
         }
     });
-
 });
 
 function sortFile()

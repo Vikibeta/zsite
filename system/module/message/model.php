@@ -92,9 +92,9 @@ class messageModel extends model
                 {
                     echo "<div class='reply-panel'>";
                     echo "<div class='panel-heading reply-heading'>";
-                    echo "<i class='icon icon-user'> {$reply->from}</i> ";
-                    echo "<i class='text-muted'>" . $reply->date . "</i>";
-                    echo html::a(helper::createLink('message', 'reply', "id={$reply->id}"), "<i class='icon icon-reply'> </i>", " data-toggle='modal' data-type='iframe' class='text-info pull-right' id='reply{$reply->id}' data-icon='reply' data-title='{$this->lang->message->reply}'");
+                    echo "<span class='text-primary'><i class='icon icon-reply'> {$reply->from}</i> </span>";
+                    echo "<span class='text-muted'>" . $reply->date . "</span>";
+                    echo html::a(helper::createLink('message', 'reply', "id={$reply->id}"), $this->lang->message->reply, " data-toggle='modal' data-type='iframe' class='pull-right' id='reply{$reply->id}' data-icon='reply' data-title='{$this->lang->message->reply}'");
                     echo '</div>';
                     echo "<div class='panel-body'>";
                     echo nl2br($reply->content);
@@ -183,21 +183,11 @@ class messageModel extends model
      */
     public function getObjectTitle($message)
     {
+        if($message->objectType == 'message' or $message->objectType == 'comment') return zget($this->getByID($message->objectID), 'from', '');
         if($message->objectType == 'article') $objectTitle = $this->dao->select('title')->from(TABLE_ARTICLE)->where('id')->eq($message->objectID)->fetch('title');
         if($message->objectType == 'product') $objectTitle = $this->dao->select('name')->from(TABLE_PRODUCT)->where('id')->eq($message->objectID)->fetch('name');
         if($message->objectType == 'book')    $objectTitle = $this->dao->select('title')->from(TABLE_BOOK)->where('id')->eq($message->objectID)->fetch('title');
-        if($message->objectType == 'message' or $message->objectType == 'comment') 
-        {
-            if(!isset($this->getByID($message->objectID)->from))
-            {
-                $objectTitle = '';
-            }
-            else
-            {
-                $objectTitle = $this->getByID($message->objectID)->from;
-            }
-        }
-        return $objectTitle;
+        return isset($objectTitle) ? $objectTitle : '';
     }
 
     /**
@@ -241,8 +231,20 @@ class messageModel extends model
      */
     public function getList($type, $status, $pager = null)
     {
-        $messages = $this->dao->select('*')->from(TABLE_MESSAGE)
-            ->where(1)
+        $messages = $this->dao->select('*')->from(TABLE_MESSAGE)->orderBy('id_desc')->fetchAll('id');
+
+        /* Get message id list with replies. */
+        $messagesWithReply = array();
+        foreach($messages as $message)
+        {
+            if($message->type == 'reply' and isset($messages[$message->objectID]) and $messages[$message->objectID]->type != 'reply')
+            {
+                $messagesWithReply[] = $message->objectID;
+            }
+        }
+
+        $messageIDList = $this->dao->select('id')->from(TABLE_MESSAGE)
+            ->where('id')->notin($messagesWithReply)
             ->beginIf($type != 'all')->andWhere('type')->eq($type)->fi()
             ->beginIf($type == 'all')->andWhere('type')->in('message,comment,reply')->fi()
             ->andWhere('status')->eq($status)
@@ -250,6 +252,11 @@ class messageModel extends model
             ->orderBy('id_desc')
             ->page($pager)
             ->fetchAll('id');
+
+        foreach($messages as $key => $message)
+        {   
+            if(!isset($messageIDList[$message->id])) unset($messages[$key]);
+        }   
 
         $messages = $this->getTitlesByList($messages);
 
@@ -344,7 +351,7 @@ class messageModel extends model
      * @access public
      * @return void
      */
-    public function post($type, $block='')
+    public function post($type, $block = '')
     {
         $account = $this->app->user->account;
         $admin   = $this->app->user->admin;
@@ -482,10 +489,9 @@ class messageModel extends model
      */
     public function deleteMessage($messageID, $mode)
     {
-        $message = $this->dao->select('id,type')->from(TABLE_MESSAGE)->where('id')->eq($messageID)->fetch();
         $this->dao->delete()
             ->from(TABLE_MESSAGE)
-            ->where('type')->eq($message->type)
+            ->where(1)
             ->beginIF($mode == 'single')->andWhere('id')->eq($messageID)->fi()
             ->beginIF($mode == 'pre')->andWhere('id')->le($messageID)->andWhere('status')->ne('1')->fi()
             ->exec();
@@ -503,14 +509,13 @@ class messageModel extends model
      */
     public function pass($messageID, $type)
     {
-        $message = $this->dao->select('id,type')->from(TABLE_MESSAGE)->where('id')->eq($messageID)->fetch();
         $this->dao->update(TABLE_MESSAGE)
             ->set('status')->eq(1)
             ->where('status')->eq(0)
-            ->andWhere('type')->eq($message->type)
             ->beginIF($type == 'single')->andWhere('id')->eq($messageID)->fi()
             ->beginIF($type == 'pre')->andWhere('id')->le($messageID)->fi()
             ->exec();
+
         return !dao::isError();
     }
 
@@ -548,7 +553,7 @@ class messageModel extends model
                 $messages .= ',' . $messageID;
             }
         }
-        setcookie('cmts', $messages);
+        setcookie('cmts', $messages, 0, '', '', false, true);
     }
 
     /**
@@ -593,7 +598,7 @@ class messageModel extends model
      */
     public function getListForWidget($limit)
     {
-        $admins = $this->dao->select('account')->from(TABLE_USER)->where('admin')->ne('no')->fetchAll('account');
+        $admins = $this->dao->setAutoLang(false)->select('account')->from(TABLE_USER)->where('admin')->ne('no')->fetchAll('account');
         $messages = $this->dao->select('*')
             ->from(TABLE_MESSAGE)
             ->where('status')->eq(0)

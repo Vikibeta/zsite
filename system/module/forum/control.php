@@ -17,23 +17,40 @@ class forum extends control
      * @access public
      * @return void
      */
-    public function index()
+    public function index($mode = '', $pageID = 1)
     {
+        $mode = $mode ? $mode : $this->config->forum->indexMode;
         $this->forum->updateStats();
-        $boards = $this->forum->getBoards();
-        $this->view->title      = $this->lang->forumHome;
-        $this->view->boards     = $boards;
-        $this->view->mobileURL  = helper::createLink('forum', 'index', '', '', 'mhtml');
-        $this->view->desktopURL = helper::createLink('forum', 'index', '', '', 'html');
 
-        if($this->app->clientDevice == 'desktop') 
+        $recPerPage = !empty($this->config->site->forumRec) ? $this->config->site->forumRec : $this->config->forum->recPerPage;
+        $this->app->loadClass('pager', $static = true);
+        $pager = new pager(0, $recPerPage, $pageID);
+
+        $this->loadModel('thread');
+        if($mode == 'latest')
         {
-            $this->view->canonicalURL = helper::createLink('forum', 'index', "", "", 'html'); 
+            $this->view->title   = $this->lang->thread->latest;
+            $this->view->threads = $this->loadModel('thread')->getList(0, 'addedDate_desc', $pager, $mode);
+            $this->view->boards  = $this->loadModel('tree')->getAbbrPairs('', 'forum');
+            $this->view->pager   = $pager;
+        }
+        elseif($mode == 'stick')
+        {
+            $this->view->title   = $this->lang->thread->stick . $this->lang->thread->common;
+            $this->view->threads = $this->loadModel('thread')->getSticks(0, $pager);
+            $this->view->boards  = $this->loadModel('tree')->getAbbrPairs('', 'forum');
+            $this->view->pager   = $pager;
         }
         else
         {
-            $this->view->canonicalURL = helper::createLink('forum', 'index', "", "", 'mhtml'); 
+            $this->view->title  = $this->lang->forumHome;
+            $this->view->boards = $this->forum->getBoards();
         }
+
+        $this->view->mode         = $mode;
+        $this->view->mobileURL    = helper::createLink('forum', 'index', "mode=$mode", '', 'mhtml');
+        $this->view->desktopURL   = helper::createLink('forum', 'index', "mode=$mode", '', 'html');
+        $this->view->canonicalURL = $this->app->clientDevice == 'desktop' ? helper::createLink('forum', 'index', "mode=$mode", "", 'html') : helper::createLink('forum', 'index', "mode=$mode", "", 'mhtml'); 
         $this->display();
     }
 
@@ -66,11 +83,12 @@ class forum extends control
         $threads = $this->loadModel('thread')->getList($board->id, $orderBy = 'repliedDate_desc', $pager);
 
         $this->view->title      = $board->name;
-        $this->view->keywords   = (!empty($board->keywords) ? ($board->keywords . ' - ') : '') . $this->config->site->keywords;
+        $this->view->keywords   = trim($board->keywords);
         $this->view->desc       = strip_tags($board->desc);
         $this->view->board      = $board;
         $this->view->sticks     = $this->thread->getSticks($board->id);
         $this->view->threads    = $threads;
+        $this->view->boards     = $this->forum->getBoards();
         $this->view->pager      = $pager;
         $this->view->mobileURL  = helper::createLink('forum', 'board', "borderID=$boardID&pageID=$pageID", "category=$board->alias", 'mhtml');
         $this->view->desktopURL = helper::createLink('forum', 'board', "borderID=$boardID&pageID=$pageID", "category=$board->alias", 'html');

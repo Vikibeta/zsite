@@ -49,8 +49,9 @@ class seo
         /* Use book instead of help. */
         if($module == 'help') $module = $items[0] = 'book';
 
+        $isFormModule = isset($config->formModules) && is_array($config->formModules) && in_array($module, $config->formModules);
         /* There's no '/' in uri. */
-        if(strpos($uri, '/') === false)
+        if(strpos($uri, '/') === false && !$isFormModule)
         {
             /* Use book instead of help. */
             if($uri == 'help') $uri = 'book';
@@ -67,7 +68,6 @@ class seo
                 $params['mode'] = 0;
                 return seo::convertURI($module, 'index', $params, $pageID);
             }
-
 
             /* Not an alias, return directly. */
             if(empty($categoryAlias[$uri])) return $uri;
@@ -120,6 +120,14 @@ class seo
         {
             $params['page'] = $items[1];
             return seo::convertURI($module, 'view', $params, $pageID);
+        }
+
+        /* Form modules. */
+        if($isFormModule)
+        {
+            $params['formID']   = isset($items[1]) ? $items[1] : 0;
+            $params['submited'] = isset($items[2]) ? $items[2] : 0;
+            return seo::convertURI('form', 'view', $params, $pageID);
         }
 
         if($module == 'book')
@@ -416,7 +424,7 @@ class uri
      * @params array    $params
      * @params array    $alias  
      * @params string   $viewType  
-     * return string
+     * @return string
      */
     public static function createVideoView($params, $alias, $viewType = '')
     {
@@ -426,6 +434,30 @@ class uri
         if(!empty($alias['category'])) $link = $alias['category'] . '/';
         if(!empty($alias['name'])) $link .= $alias['name'] . '-';
         $link .= array_shift($params);
+
+        $viewType = $viewType ? $viewType : $config->default->view;
+
+        return $config->webRoot . $link . '.' . $viewType;
+    }
+
+    /**
+     * Create form view.
+     *
+     * @param  array  $params
+     * @param  array  $alias
+     * @param  string $viewType
+     * @static
+     * @access public
+     * @return string
+     */
+    public static function createFormView($params, $alias, $viewType = '')
+    {
+        global $config;
+
+        $link = 'form/';
+        if(!empty($alias['type'])) $link = $alias['type'] . '/';
+        $link .= array_shift($params);
+        if($params) $link .= '/' . array_shift($params);
 
         $viewType = $viewType ? $viewType : $config->default->view;
 
@@ -585,8 +617,9 @@ class uri
         global $config;
         $viewType = $viewType ? $viewType : $config->default->view;
 
-        $link = 'book/' . $alias['book'] . '/';
-        if(isset($alias['node'])) $link .= $alias['node'] . '-';
+        $link = 'book/';
+        if(!empty($alias['book'])) $link .= $alias['book'] . '/';
+        if(!empty($alias['node'])) $link .= $alias['node'] . '-';
         $link .= array_shift($params);
 
         return $config->webRoot . $link . '.' . $viewType;

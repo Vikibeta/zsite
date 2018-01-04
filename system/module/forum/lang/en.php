@@ -20,14 +20,21 @@ $lang->forum->readonly    = 'Read Only';
 $lang->forum->notExist    = 'Board does not exist.'; 
 $lang->forum->lblOwner    = " [ BM %s ]";
 
-$lang->forum->post    = 'Post';
-$lang->forum->admin   = 'Board Moderator';
-$lang->forum->update  = 'Data Update';
-$lang->forum->setting = 'Forum Settings';
+$lang->forum->post       = 'Post';
+$lang->forum->admin      = 'Board Moderator';
+$lang->forum->update     = 'Data Update';
+$lang->forum->setting    = 'Forum Settings';
 $lang->forum->postReview = 'Post Review';
+$lang->forum->allBoards  = 'All Boards';
+$lang->forum->index      = 'Index';
 
 $lang->forum->updateDesc    = 'Number of threads on each board will be updated.';
 $lang->forum->successUpdate = 'Done!';
+
+$lang->forum->indexModeOptions = array();
+$lang->forum->indexModeOptions['board']  = 'Boards';
+$lang->forum->indexModeOptions['latest'] = 'Latest Thread';
+$lang->forum->indexModeOptions['stick']  = 'Sticky Thread';
 
 /* Adjust the pager. */
 $lang->pager->noRecord      = '';

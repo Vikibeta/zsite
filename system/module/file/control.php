@@ -177,7 +177,7 @@ class file extends control
             $this->dao->insert(TABLE_FILE)->data($file)->exec();
 
             $fileID = $this->dao->lastInsertID();
-            $url    = "{$this->config->webRoot}file.php?pathname={$saveName}&extension={$file['extension']}";
+            $url    = $this->file->printFileURL($saveName, $file['extension']);
             $_SESSION['album'][$uid][] = $fileID;
             $this->loadModel('setting')->setItems('system.common.site', array('lastUpload' => time()));
             die(json_encode(array('error' => 0, 'url' => $url)));
@@ -254,7 +254,6 @@ class file extends control
     public function browseSource($type = '', $orderBy = 'id_desc', $pageID = 1)
     {
         $this->file->setSavePath('source');
-        $this->lang->file->menu = $this->lang->theme->menu;
         $this->lang->menuGroups->file = 'ui';
 
         $this->app->loadClass('pager', $static = true);
@@ -394,7 +393,19 @@ class file extends control
         /* If the mode is open, locate directly. */
         if($mode == 'open')
         {
-            if(file_exists($file->realPath) or (isset($file->syncStatus) and $file->syncStatus == 'synced')) $this->locate($file->webPath);
+            if(file_exists($file->realPath) or (isset($file->syncStatus) and $file->syncStatus == 'synced'))
+            {
+                $mime = zget($this->config->file->mimes, $file->extension, 'default');
+                header("content-type: $mime");
+
+                $handle = fopen($file->realPath, "r");
+                if($handle)
+                {
+                    while(!feof($handle)) echo fgets($handle);
+                    fclose($handle);
+                }
+                exit;
+            }
             $this->app->triggerError("The file you visit $fileID not found.", __FILE__, __LINE__, true);
         }
         else
@@ -559,8 +570,8 @@ class file extends control
         }
         else
         {
-            $currentPath    = $this->file->savePath . $this->get->path;
-            $currentUrl     = $this->file->webPath . $this->get->path;
+            $currentPath    = rtrim($this->file->savePath, '/') . '/' . $this->get->path;
+            $currentUrl     = rtrim($this->file->webPath, '/') . '/' . $this->get->path;
             $currentDirPath = $this->get->path;
             $moveupDirPath  = preg_replace('/(.*?)[^\/]+\/$/', '$1', $currentDirPath);
         }
@@ -632,6 +643,7 @@ class file extends control
                     $fileList[$i]['pathname']  = $pathname;
                     $fileList[$i]['imagesize'] = $imageSize;
                     $fileList[$i]['filename']  = $filename . "?fromSpace=y";
+                    $fileList[$i]['fileurl']   = $this->file->printFileURL($pathname, $fileExtension);
                 }
 
                 $fileList[$i]['datetime'] = date('Y-m-d H:i:s', filemtime($file));
@@ -786,30 +798,5 @@ class file extends control
         
         if($last >= $total) $this->send(array('result' => 'finished', 'message' => $this->lang->createSuccess));
         $this->send(array('result' => 'unfinished', 'next' => inlink('rebuildWatermark', "last=$last&total=$total"), 'completed' => sprintf($this->lang->file->rebuildWatermarks, $progress)));
-    }
-
-    /**
-     * Read file. 
-     * 
-     * @param  int    $fileID 
-     * @access public
-     * @return void
-     */
-    public function read($fileID, $type = 'realPath')
-    {
-        $file = $this->file->getById($fileID);
-
-        $filePath = $this->file->getRealPath($file, $type);
-        if(empty($file) or !file_exists($filePath)) return false;
-
-        $mime = in_array($file->extension, $this->config->file->imageExtensions) ? "image/{$file->extension}" : $this->config->file->mimes['default'];
-        header("Content-type: $mime");
-
-        $handle = fopen($filePath, "r");
-        if($handle)
-        {
-            while(!feof($handle)) echo fgets($handle);
-            fclose($handle);
-        }
     }
 }

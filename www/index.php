@@ -21,6 +21,28 @@ define('RUN_MODE', 'front');
 /* Load the framework. */
 include 'loader.php';
 
+/* If static site deployed in localhost. */
+if(is_file('static.txt') && isset($_SERVER['REQUEST_URI']) && $_SERVER['REQUEST_URI'] == DIRECTORY_SEPARATOR . 'index.php')
+{
+    helper::import($systemRoot . 'lib/mobile/mobile.class.php');    
+
+    if(class_exists('mobile')) 
+    {
+        $mobile = new mobile();
+        $device = ($mobile->isMobile() and !$mobile->isTablet()) ? 'mobile' : 'desktop';
+    }
+    else
+    {
+        $device = 'desktop';
+    }
+
+    if($device == 'mobile')
+    {
+        if(is_file('home.mhtml')) die(file_get_contents('home.mhtml'));
+    }
+    if(is_file('home.html')) die(file_get_contents('home.html'));
+}
+
 if(isset($_GET['requestType']) && $_GET['requestType'] == 'pathinfo') die('pathinfo');
 
 /* Instance the app and run it. */

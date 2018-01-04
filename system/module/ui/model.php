@@ -41,7 +41,7 @@ class uiModel extends model
             {
                 $templates[$templateName]['themes'] = array('default' => 'default');
 
-                $themePath = $this->app->getWwwRoot() . 'template' . DS . $templateName . '/theme/default';
+                $themePath = $this->app->getAppRoot() . 'template' . DS . $templateName . '/theme/default';
                 if(!is_dir($themePath)) mkdir($themePath, 0777, true);
             }
         }
@@ -213,13 +213,13 @@ class uiModel extends model
         if($section != 'logo')
         {
             $clientLang = $this->app->getClientLang();
-            $oldFiles = $this->dao->select('id')->from(TABLE_FILE)->where('objectType')->eq($section)->andWhere('lang')->eq($clientLang)->fetchAll('id');
+            $oldFiles   = $this->dao->select('id')->from(TABLE_FILE)->where('objectType')->eq($section)->andWhere('lang')->eq($clientLang)->fetchAll('id');
             foreach($oldFiles as $file) $fileModel->delete($file->id);
             if(dao::isError()) return array('result' => false, 'message' => dao::getError());
         }
 
         /* Upload new logo. */
-        $uploadResult = $fileModel->saveUpload('', '', '', $htmlTagName);
+        $uploadResult = $fileModel->saveUpload('logo', '', '', $htmlTagName);
         if(!$uploadResult) return array('result' => false, 'message' => $this->lang->fail);
 
         $fileIdList = array_keys($uploadResult);
@@ -237,7 +237,7 @@ class uiModel extends model
         {
             $template = $this->config->template->{$this->app->clientDevice}->name;
             $theme    = $this->post->theme == 'all' ? 'all' : $this->config->template->{$this->app->clientDevice}->theme;
-            $logo = isset($this->config->site->logo) ? json_decode($this->config->site->logo, true) : array();
+            $logo     = isset($this->config->site->logo) ? json_decode($this->config->site->logo, true) : array();
             if(!isset($logo[$template])) $logo[$template] = array();
             $logo[$template]['themes'][$theme] = $setting;
 
@@ -846,13 +846,13 @@ class uiModel extends model
      */
     public function exportTheme($template, $theme, $code)
     {
-        $themeInfo  = fixer::input('post')
+        $themeInfo = fixer::input('post')
             ->add('type', 'theme')
             ->add('fromVersion', $this->config->version)
             ->add('templateCompatible', $this->post->template)
             ->get();
 
-        $yaml  = $this->app->loadClass('spyc')->dump($themeInfo);
+        $yaml = $this->app->loadClass('spyc')->dump($themeInfo);
         file_put_contents($this->directories->exportDocPath . $this->app->getClientLang() . '.yaml', $yaml);
 
         $this->clearSources();
@@ -959,14 +959,13 @@ class uiModel extends model
     public function exportThemeDB($template, $theme)
     {
         $lang        = $this->app->getClientLang();
-        $dbFile      = $this->directories->exportDbPath  . 'install.sql';
+        $dbFile      = $this->directories->exportDbPath . 'install.sql';
         $encryptFile = $this->directories->encryptDbPath . 'install.sql';
         $plan        = zget($this->config->layout, "{$template}_{$theme}");
 
         $tables = array(TABLE_BLOCK, TABLE_LAYOUT, TABLE_FILE, TABLE_CONFIG);
-
         $groups = $this->getUsedSlideGroups($template, $theme);
-        $groups = join(",", $groups);
+        $groups = join(',', $groups);
         if(!empty($groups))
         {
             $tables[] = TABLE_SLIDE;
@@ -1073,12 +1072,12 @@ class uiModel extends model
     {
         $sqls = file_get_contents($file);
 
-        $sqls = str_replace(TABLE_BLOCK,    "eps_block",  $sqls);
-        $sqls = str_replace(TABLE_LAYOUT,   "eps_layout", $sqls);
-        $sqls = str_replace(TABLE_SLIDE,    "eps_slide",  $sqls);
-        $sqls = str_replace(TABLE_CONFIG,   "eps_config", $sqls);
+        $sqls = str_replace(TABLE_BLOCK,    "eps_block",    $sqls);
+        $sqls = str_replace(TABLE_LAYOUT,   "eps_layout",   $sqls);
+        $sqls = str_replace(TABLE_SLIDE,    "eps_slide",    $sqls);
+        $sqls = str_replace(TABLE_CONFIG,   "eps_config",   $sqls);
         $sqls = str_replace(TABLE_CATEGORY, "eps_category", $sqls);
-        $sqls = str_replace(TABLE_FILE,     "eps_file", $sqls);
+        $sqls = str_replace(TABLE_FILE,     "eps_file",     $sqls);
         $sqls = str_replace("source/{$template}/{$theme}/", "source/{$template}/THEME_CODEFIX/", $sqls);
         $sqls = str_replace("\/{$template}\/{$theme}\/", "/THEME_CODEFIX/", $sqls);
         $sqls = str_replace("\"$theme\"", "\"THEME_CODEFIX\"", $sqls);
@@ -1091,7 +1090,7 @@ class uiModel extends model
         /* Replace theme code in custom params of themes. */
         $sqls = str_replace('\"' . $theme . '\":{\"background', '\"THEME_CODEFIX\":{\"background', $sqls);
 
-        /* Replace theme code in custom params of clrean and wide theme. */
+        /* Replace theme code in custom params of clean and wide theme. */
         $sqls = str_replace('\"' . $theme . '\":{\"color-primary', '\"THEME_CODEFIX\":{\"color-primary', $sqls);
 
         /* Replace theme code in block custom. */
@@ -1117,13 +1116,12 @@ class uiModel extends model
     public function clearSources()
     {
         $this->loadModel('file');
-        $files = $this->dao->select('*')
-            ->from(TABLE_FILE)
-            ->where('objectType')->in('slide,source')
-            ->fetchAll();
+        $files = $this->dao->select('*')->from(TABLE_FILE)->where('objectType')->in('slide,source')->fetchAll();
+
         $filesToRemove = array();
         foreach($files as $file)
         {
+            $this->file->setSavePath($file->objectType);
             $realPath = $this->file->savePath . $this->file->getRealPathName($file->pathname);
             if(!file_exists($realPath)) $filesToRemove[] = $file->id;
         }
@@ -1232,14 +1230,14 @@ class uiModel extends model
         {
             $fileInfo = pathinfo($file);
             if($fileInfo['extension'] == 'php') continue;
-            $target   = $this->directories->encryptSourcePath . $fileInfo['filename'] . '.php'; 
+            $target = $this->directories->encryptSourcePath . $fileInfo['filename'] . '.php'; 
 
             $encryptFiles[$fileInfo['basename']] = $fileInfo['filename'] . '.php';
             $this->save2php($file, $target);
         }
 
         /* Save slides to php sources. */
-        $slideList =  glob($this->directories->exportSlidePath . '*');
+        $slideList = glob($this->directories->exportSlidePath . '*');
         foreach($slideList as $file)
         {
             $fileInfo = pathinfo($file);
@@ -1326,7 +1324,7 @@ EOT;
         $jsCodes  = serialize($js);
         $cssCode  = var_export($cssCodes, true);
         $jsCodes  = var_export($jsCodes, true);
-        $codes = "<?php
+        $codes    = "<?php
 if(!function_exists('getCSS'))
 {
     function getCSS(\$code)
@@ -1350,8 +1348,7 @@ if(!function_exists('getJS'))
         }
         return \$js;
     }
-}
-";
+}";
         return file_put_contents($hookFile, $codes);
     }
 
@@ -1433,7 +1430,7 @@ if(!function_exists('getJS'))
      */
     public function removeTemplateFiles($template)
     {
-        $templatePath = $this->app->getWwwRoot() . 'template' . DS . $template;
+        $templatePath = $this->app->getAppRoot() . 'template' . DS . $template;
         $customPath   = $this->app->getWwwRoot() . 'data' . DS . 'css' . DS . $template;
         $sourcePath   = $this->app->getWwwRoot() . 'data' . DS . 'source' . DS . $template;
 
@@ -1485,7 +1482,7 @@ if(!function_exists('getJS'))
     public function getEffectViewFile($template, $module, $file)
     {
         $extFile = $this->getExtFile($template, $module, $file);
-        return file_exists($extFile) ? $extFile : $this->app->getWwwroot() . 'template' . DS . $template . DS . $module . DS . $file . '.html.php';
+        return file_exists($extFile) ? $extFile : $this->app->getAppRoot() . 'template' . DS . $template . DS . $module . DS . $file . '.html.php';
     }
 
     /**
@@ -1501,10 +1498,7 @@ if(!function_exists('getJS'))
 
         foreach($packages as $package)
         {
-            $finfo    = finfo_open(FILEINFO_MIME); 
-            $mimetype = finfo_file($finfo, $package); 
-            finfo_close($finfo);
-
+            $mimetype = helper::checkZip($package);
             if(strpos($mimetype, 'zip') === false) continue;
 
             $theme = new stdclass();

@@ -22,12 +22,17 @@ class book extends control
      * @access public
      * @return void
      */
-    public function index()
+    public function index($pageID = 1)
     {
+        $recPerPage = !empty($this->config->site->bookRec) ? $this->config->site->bookRec : $this->config->book->recPerPage;
+        $this->app->loadClass('pager', $static = true);
+        $pager = new pager($recTotal = 0, $recPerPage, $pageID);
+
         if(isset($this->config->book->index) and $this->config->book->index == 'list')
         {
             $this->view->title = $this->lang->book->list;
-            $this->view->books = $this->book->getBookList();
+            $this->view->books = $this->book->getBookList($pager);
+            $this->view->pager = $pager;
             $this->display();
         }
         else
@@ -86,7 +91,7 @@ class book extends control
             $serials = $this->book->computeSN($book->id);
 
             $this->view->title      = $book->title;
-            $this->view->keywords   = trim((!empty($node->keywords) ? ($node->keywords . ' - ') : '') . (!empty($book->keywords) ? ($book->keywords . ' - ') : '') . $this->config->site->keywords);
+            $this->view->keywords   = trim(trim($node->keywords . ' - ' . $book->keywords), '-');
             $this->view->node       = $node;
             $this->view->book       = $book;
             $this->view->serials    = $serials;
@@ -124,7 +129,7 @@ class book extends control
         $this->view->bookInfoLink = html::a(inLink('read', "articleID=$book->id", "book=$book->alias&node=$article->alias"), $book->title . $this->lang->book->info, "class = $activeInfoLink");
         
         $this->view->title       = $article->title . ' - ' . $book->title;;
-        $this->view->keywords    = trim((!empty($article->keywords) ? ($article->keywords . ' - ') : '') . (!empty($node->keyword) ? ($node->keywords . ' - ') : '') . (!empty($book->keywords) ? ($book->keywords . ' - ') : '') . $this->config->site->keywords);
+        $this->view->keywords    = trim(trim($article->keywords . ' - ' . $book->keywords), '-');
         $this->view->desc        = $article->summary;
         $this->view->article     = $article;
         $this->view->content     = $content;

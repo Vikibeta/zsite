@@ -35,7 +35,7 @@ class sitemap extends control
     public function sitemapHTML($onlyBody)
     {
         $this->loadModel('tree');
-        $bookAndArticleList = $this->loadModel('book')->getBookAndArticleList();
+        $bookAndArticleList = $this->loadModel('book')->getAll();
 
         $this->view->articleTree  = $this->tree->getTreeMenu('article', 0, array('treeModel', 'createBrowseLink'));
         $this->view->productTree  = $this->tree->getTreeMenu('product', 0, array('treeModel', 'createProductBrowseLink'));
@@ -97,6 +97,7 @@ class sitemap extends control
         $this->view->threads   = $threads;
         $this->view->pages     = $pages;
 
+        echo '<?xml version="1.0" encoding="UTF-8" ?>';
         $this->display();
     }
 }

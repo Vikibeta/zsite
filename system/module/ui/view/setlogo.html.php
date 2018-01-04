@@ -13,14 +13,14 @@
 <?php include '../../common/view/header.admin.html.php';?>
 <div class='panel'>
   <div class='panel-heading'>
-    <strong><i class='icon-certificate'></i><?php echo $lang->ui->setLogo;?></strong>
+    <strong><i class='icon-certificate'></i> <?php echo $lang->ui->setLogo;?></strong>
   </div>
   <div class='panel-body row row-logo'>
     <form method='post' id='ajaxForm' enctype='multipart/form-data'>
       <div class='col-md-6'>
         <div class='box'>
           <div class='card'>
-          <?php if(isset($logo->webPath)) echo html::a('javascript:;', html::image("{$config->webRoot}file.php?pathname={$logo->pathname}&objectType=logo&imageSize=&extension={$logo->extension}", "class='logo'"), "class='btn-upload'");?>
+          <?php if(isset($logo->webPath)) echo html::a('javascript:;', html::image($this->loadModel('file')->printFileURL($logo->pathname, $logo->extension), "class='logo'"), "class='btn-upload'");?>
           <?php if(!isset($logo->webPath)) echo html::a('javascript:;', $lang->ui->uploadLogo, "class='text-lg btn-upload'");?>
           </div>
           <span class='actions'>
@@ -37,7 +37,7 @@
       <div class='col-md-6'>
         <div class='box'>
         <div class='card'>
-          <?php if(isset($favicon->webPath)) echo html::a('javascript:;', html::image("{$config->webRoot}file.php?pathname={$favicon->pathname}&objectType=favicon&imageSize=&extension=ico", "class='favicon'"), "class='btn-upload'");?>
+          <?php if(isset($favicon->webPath)) echo html::a('javascript:;', html::image($this->loadModel('file')->printFileURL($favicon->pathname, 'ico'), "class='favicon'"), "class='btn-upload'");?>
           <?php if(!isset($favicon->webPath)) echo html::a('javascript:;', $lang->ui->uploadFavicon, "class='text-lg btn-upload'");?>
         </div>
         <span class='actions'>

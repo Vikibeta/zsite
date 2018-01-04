@@ -39,18 +39,15 @@ class page extends control
      */
     public function view($pageID)
     {
-        $page = $this->loadModel('article')->getPageByID($pageID);
+        $pageID = urldecode($pageID);
+        $page   = $this->loadModel('article')->getPageByID($pageID);
         if(!$page) die($this->fetch('errors', 'index'));
 
         if($page->link) helper::header301($page->link);
 
-        $title    = $page->title;
-        $keywords = (!empty($page->keywords) ? ($page->keywords . ' - ') : '') . $this->config->site->keywords;
-        $desc     = $page->summary;
-        
-        $this->view->title      = $title;
-        $this->view->keywords   = $keywords;
-        $this->view->desc       = $desc;
+        $this->view->title      = $page->title;
+        $this->view->keywords   = trim($page->keywords);
+        $this->view->desc       = $page->summary;
         $this->view->page       = $page;
         $this->view->mobileURL  = helper::createLink('page', 'view', "pageID=$pageID", "name=$page->alias", 'mhtml');
         $this->view->desktopURL = helper::createLink('page', 'view', "pageID=$pageID", "name=$page->alias", 'html');

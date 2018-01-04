@@ -57,8 +57,6 @@ class productModel extends model
         $product->image->list    = $product->images;
         $product->image->primary = !empty($product->image->list) ? $product->image->list[0] : ''; 
 
-        $product = $this->loadModel('file')->replaceImgURL($product, $this->config->product->editor->create['id']);
-
         return $product;
     }   
 
@@ -276,11 +274,11 @@ class productModel extends model
             ->add('addedDate', $now)
             ->add('editedDate', $now)
             ->get();
+
         $product->alias    = seo::unify($product->alias, '-', true);
         $product->keywords = seo::unify($product->keywords, ',');
         if(!isset($product->categories)) $product->categories = '';
 
-        $product = $this->loadModel('file')->processImgURL($product, $this->config->product->editor->create['id'], $this->post->uid);
         $this->dao->insert(TABLE_PRODUCT)
             ->data($product, $skip = 'categories,uid,label,value')
             ->autoCheck()
@@ -335,7 +333,6 @@ class productModel extends model
         $product->keywords = seo::unify($product->keywords, ',');
         if(!isset($product->categories)) $product->categories = '';
 
-        $product = $this->loadModel('file')->processImgURL($product, $this->config->product->editor->create['id'], $this->post->uid);
         $this->dao->update(TABLE_PRODUCT)
             ->data($product, $skip = 'categories,uid,label,value')
             ->autoCheck()
@@ -346,7 +343,6 @@ class productModel extends model
 
         $attributes = $this->saveAttributes($productID);
         if($attributes === false) return false;
-
 
         $this->loadModel('file')->updateObjectID($this->post->uid, $productID, 'product');
         $this->file->copyFromContent($this->post->content, $productID, 'product');

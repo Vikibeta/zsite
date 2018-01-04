@@ -148,7 +148,8 @@ class fileModel extends model
         foreach($files as $file)
         {
             if($file->editor and $file->objectType != 'article') continue;
-            if($file->isVideo) continue;
+            if($file->isVideo and $file->editor) continue;
+
             $file->title = $file->title . ".$file->extension";
             $fileMD5  = md5_file(rtrim($this->app->getWwwRoot(), '/') . $file->fullURL);
             $fileName = explode('.', basename($file->fullURL));
@@ -158,11 +159,11 @@ class fileModel extends model
                 if($file->objectType == 'product') continue;
                 if($file->editor)
                 {
-                    $imagesHtml .= "<li class='file-image hidden file-{$file->extension}'>" . html::a(helper::createLink('file', 'download', "fileID=$file->id&mouse=left"), html::image("{$this->config->webRoot}file.php?pathname={$file->pathname}&objectType={$file->objectType}&imageSize=smallURL&extension={$file->extension}"), "target='_blank' class='$fileName' data-toggle='lightbox' data-img-width='{$file->width}' data-img-height='{$file->height}' title='{$file->title}'") . '</li>';
+                    $imagesHtml .= "<li class='file-image hidden file-{$file->extension}'>" . html::a(helper::createLink('file', 'download', "fileID=$file->id&mouse=left"), html::image($this->printFileURL($file->pathname, $file->extension, $file->objectType, 'smallURL')), "target='_blank' class='$fileName' data-toggle='lightbox' data-img-width='{$file->width}' data-img-height='{$file->height}' title='{$file->title}'") . '</li>';
                 }
                 else
                 {
-                    $imagesHtml .= "<li class='file-image file-{$file->extension}'>" . html::a(helper::createLink('file', 'download', "fileID=$file->id&mouse=left"), html::image("{$this->config->webRoot}file.php?pathname={$file->pathname}&objectType={$file->objectType}&imageSize=smallURL&extension={$file->extension}"), "target='_blank' class='$fileName' data-toggle='lightbox' data-img-width='{$file->width}' data-img-height='{$file->height}' title='{$file->title}'") . '</li>';
+                    $imagesHtml .= "<li class='file-image file-{$file->extension}'>" . html::a(helper::createLink('file', 'download', "fileID=$file->id&mouse=left"), html::image($this->printFileURL($file->pathname, $file->extension, $file->objectType, 'smallURL')), "target='_blank' class='$fileName' data-toggle='lightbox' data-img-width='{$file->width}' data-img-height='{$file->height}' title='{$file->title}'") . '</li>';
                 }
             }
             else
@@ -246,7 +247,7 @@ class fileModel extends model
         $template = $this->config->template->{$this->app->clientDevice}->name;
         $theme    = $this->config->template->{$this->app->clientDevice}->theme;
 
-        $this->syncSources($template, $theme);
+        $this->scanSources($template, $theme);
 
         $files = $this->dao->setAutoLang(false)->select('*')
             ->from(TABLE_FILE)
@@ -278,7 +279,7 @@ class fileModel extends model
      * @access public
      * @return void
      */
-    public function syncSources($template, $theme)
+    public function scanSources($template, $theme)
     {
         $fileList = glob($this->app->getDataRoot() . "source/$template/$theme/*");
         $newFiles = array();
@@ -396,7 +397,7 @@ class fileModel extends model
         {   
             $realPathName = $this->savePath . $this->getSaveName($file['pathname']);
             if($objectType == 'source') $this->config->file->allowed .= ',css,js,';
-            if(stripos($this->config->file->allowed, ',' . $file['extension'] . ',') === false)
+            if(stripos(',' . trim($this->config->file->allowed, ',') . ',', ',' . $file['extension'] . ',') === false)
             {
                 if(!move_uploaded_file($file['tmpname'], $realPathName)) return false;
                 $file['pathname'] .= '.txt';
@@ -409,7 +410,7 @@ class fileModel extends model
 
             if(strtolower($file['extension']) != 'gif' and in_array(strtolower($file['extension']), $this->config->file->imageExtensions, true))
             {
-                if($objectType != 'source' and $objectType != 'slide') 
+                if(strpos('source,slide,logo', $objectType) === false)
                 {
                     $this->compressImage($realPathName);
                     if(isset($this->config->file->watermark) and $this->config->file->watermark == 'open')
@@ -598,28 +599,6 @@ class fileModel extends model
     }
 
     /**
-     * Get realpath.
-     * 
-     * @param  object   $file 
-     * @param  string   $type 
-     * @access public
-     * @return void
-     */
-    public function getRealPath($file, $type)
-    {
-        if($type == 'realPath') return $file->realPath;
-
-        $this->setSavePath($file->objectType);
-        $realPath = $this->savePath . $this->getRealPathName($file->pathname, $file->objectType);
-
-        if($type == 'smallURL')  $realPath = str_replace('f_', 's_', $realPath);
-        if($type == 'middleURL') $realPath = str_replace('f_', 'm_', $realPath);
-        if($type == 'largeURL')  $realPath = str_replace('f_', 'l_', $realPath);
-
-        return $realPath;
-    }
-
-    /**
      * Get image width and height.
      * 
      * @param  string    $imagePath 
@@ -746,7 +725,10 @@ class fileModel extends model
     public function edit($fileID)
     {
         $this->replaceFile($fileID);
-        $fileInfo = fixer::input('post')->remove('upFile')->get();
+        $fileInfo = fixer::input('post')
+            ->remove('pathname')
+            ->remove('upFile')
+            ->get();
         if(!validater::checkFileName($fileInfo->title)) return false;
         $fileInfo->lang = 'all';
         $this->dao->update(TABLE_FILE)->data($fileInfo)->autoCheck()->batchCheck($this->config->file->require->edit, 'notempty')->where('id')->eq($fileID)->exec();
@@ -787,7 +769,7 @@ class fileModel extends model
 
             $realPathName = $this->savePath . $this->getSaveName($fileInfo->pathname);
             $imageSize    = array('width' => 0, 'height' => 0);
-            if(stripos($this->config->file->allowed, ',' . $extension . ',') === false)
+            if(stripos(",{$this->config->file->allowed},", ',' . $extension . ',') === false)
             {
                 if(!move_uploaded_file($file['tmpname'], $realPathName)) return false;
                 $fileInfo->pathname .= '.txt';
@@ -959,8 +941,8 @@ class fileModel extends model
             $file['size']      = strlen($imageData);
             $file['addedBy']   = $this->app->user->account;
             $file['addedDate'] = helper::today();
-            $file['title']     = basename($file['pathname']);
             $file['pathname']  = $this->setPathName($file);
+            $file['title']     = basename($file['pathname']);
             $file['editor']    = 1;
 
             $realPathName = $this->savePath . $this->getSaveName($file['pathname']);
@@ -980,7 +962,8 @@ class fileModel extends model
             $fileID = $this->dao->lastInsertID();
             $_SESSION['album'][$uid][] = $fileID;
 
-            $data = str_replace($out[1][$key], "{$this->config->webRoot}file.php?pathname={$file['pathname']}&objectType={$file['objectType']}&imageSize=&extension={$file['extension']}", $data);
+            $saveName = $this->getSaveName($file['pathname']);
+            $data = str_replace($out[1][$key], $this->printFileURL($saveName, $file['extension']), $data);
         }
 
         return $data;
@@ -1121,7 +1104,7 @@ class fileModel extends model
     public function sendDownHeader($fileName, $fileType, $content, $fileSize = 0)
     {
         /* Set the downloading cookie, thus the export form page can use it to judge whether to close the window or not. */
-        setcookie('downloading', 1);
+        setcookie('downloading', 1, 0, '', '', false, true);
 
         /* Append the extension name auto. */
         $extension = '.' . $fileType;
@@ -1197,7 +1180,7 @@ class fileModel extends model
         $now = helper::now();
         if($objectType == 'source') $this->config->file->allowed .= ',css,js,';
         if($objectType == 'themePackage')  $this->config->file->allowed  = ',zip,';
-        if(strpos($this->config->file->allowed, ',' . $file['extension'] . ',') === false)
+        if(stripos(',' . trim($this->config->file->allowed, ',') . ',', ',' . $file['extension'] . ',') === false)
         {
             $file['pathname'] .= '.txt';
         }
@@ -1264,6 +1247,8 @@ class fileModel extends model
                 $this->dao->insert(TABLE_FILE)->data($file)->exec();
                 $file['id'] = $this->dao->lastInsertId();
             }
+
+            $this->loadModel('setting')->setItems('system.common.site', array('lastUpload' => time()));
         }
 
         return $file;
@@ -1282,7 +1267,7 @@ class fileModel extends model
         if(!extension_loaded('gd')) return false;
         if(!is_writable($imageInfo['dirname'])) return false;
         $rawImage = str_replace('f_', '', $imagePath);
-
+        
         if(!file_exists($rawImage)) copy($imagePath, $rawImage); 
         $this->addTextWatermark($rawImage, $imagePath);
         $this->compressImage($imagePath);
@@ -1387,16 +1372,28 @@ class fileModel extends model
     public function scanImages()
     {
         $files = glob($this->app->getDataRoot() . "upload/*/f_*");
+        $logos = $this->dao->select('pathname')
+            ->from(TABLE_FILE)
+            ->where('objectType')->eq('logo')
+            ->fetchAll();
+
+        /* Delete logo  form files. */
+        foreach($files as $key => $file)
+        {
+            foreach($logos as $logo)
+            {
+                if(strpos($file, substr($logo->pathname, 0, strpos($logo->pathname, '.'))) !== false) unset($files[$key]);
+            } 
+        }
         $images = array();
         foreach($files as $key => $file)
         {
-            $mimeType = mime_content_type($file);
-            if(substr($mimeType, 0, 6) != 'image/') continue;
-            if(strpos($mimeType, 'gif') !== false) continue;
-            if(strpos($mimeType, 'ico') !== false) continue;
+            $size = getimagesize($file);
+            if(substr($size['mime'], 0, 6) != 'image/') continue;
+            if(strpos($size['mime'], 'gif') !== false) continue;
+            if(strpos($size['mime'], 'ico') !== false) continue;
             $images[] = $file;
         }
-
         return $images;
     }
 
@@ -1430,50 +1427,18 @@ class fileModel extends model
     }
 
     /**
-     * Process editor.
+     * Print file URL.
      * 
-     * @param  object    $data 
-     * @param  string    $editorList 
+     * @param  string  $pathname 
+     * @param  string  $extension 
+     * @param  string  $objectType 
+     * @param  string  $size 
      * @access public
-     * @return object
+     * @return string
      */
-    public function processImgURL($data, $editorList, $uid = '')
+    public function printFileURL($pathname, $extension, $objectType = '', $size = '')
     {
-        if(is_string($editorList)) $editorList = explode(',', str_replace(' ', '', $editorList));
-        $readLinkReg = $this->config->webRoot . 'file.php?pathname=(%pathname%)&extension=(%viewType%)';
-        $readLinkReg = str_replace(array('%pathname%', '%viewType%', '?', '/'), array('[0-9]{6}/f_[a-z0-9]{32}', '\w+', '\?', '\/'), $readLinkReg);
-        foreach($editorList as $editorID)
-        {
-            if(empty($editorID) or empty($data->$editorID)) continue;
-
-            $pasteData = $this->pasteImage($data->$editorID, $uid);
-            if($pasteData) $data->$editorID = $pasteData;
-
-            $imgURL = '{$1.$2}';
-            $data->$editorID = preg_replace("/ src=\"$readLinkReg\" /", ' src="' . $imgURL . '" ', $data->$editorID);
-            $data->$editorID = preg_replace("/ src=\"" . htmlspecialchars($readLinkReg) . "\" /", ' src="' . $imgURL . '" ', $data->$editorID);
-        }
-
-        return $data;
-    }
-
-    /**
-     * Revert real src. 
-     * 
-     * @param  object    $data 
-     * @param  string    $fields 
-     * @access public
-     * @return object
-     */
-    public function replaceImgURL($data, $fields)
-    {
-        if(is_string($fields)) $fields = explode(',', str_replace(' ', '', $fields));
-        foreach($fields as $field)
-        {
-            if(empty($field) or empty($data->$field)) continue;
-            $data->$field = preg_replace('/ src="{([0-9]{6}\/f_[a-z0-9]{32})(\.(\w+))?}" /', ' src="' . $this->config->webRoot . 'file.php?pathname=$1&extension=$3" ', $data->$field);
-        }
-
-        return $data;
+        $version = isset($this->config->site->lastUpload) ? $this->config->site->lastUpload : '';
+        return $this->config->webRoot . "file.php?f={$pathname}&t={$extension}&o={$objectType}&s={$size}&v={$version}";
     }
 }

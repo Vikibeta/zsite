@@ -134,7 +134,7 @@ $lang->getUserByApi       = '獲取綁定信息';
 
 /* Select lang tip */
 $lang->selectLangTip = array();
-$lang->selectLangTip['zh-cn'] = '切換到簡體中文站點';
+$lang->selectLangTip['zh-tw'] = '切換到簡體中文站點';
 $lang->selectLangTip['zh-tw'] = '切換到繁體中文站點';
 $lang->selectLangTip['en']    = '切換到英文站點';
 
@@ -249,10 +249,8 @@ $lang->blog = new stdclass();
 $lang->blog->menu = new stdclass();
 $lang->blog->menu->browse       = '博客列表|article|admin|type=blog';
 
-/* Menu of page module. */
+/* Init page. */
 $lang->page = new stdclass();
-$lang->page->menu = new stdclass();
-$lang->page->menu->browse = array('link' => '單頁列表|article|admin|type=page', 'alias' => 'create, edit');
 
 $lang->express = new stdclass();
 
@@ -260,11 +258,6 @@ $lang->orderSetting = new stdclass();
 $lang->orderSetting->menu = new stdclass();
 $lang->orderSetting->menu->orderSetting = '設置|product|setting|';
 $lang->orderSetting->menu->express      = '快遞|tree|browse|type=express';
-
-$lang->userSetting = new stdclass();
-$lang->userSetting->menu = new stdclass();
-$lang->userSetting->menu->score         = '積分規則|score|setcounts|';
-$lang->userSetting->menu->stateinfo     = '積分結算|score|showstateinfo|';
 
 /* Menu of product module. */
 $lang->product = new stdclass();
@@ -329,7 +322,7 @@ $lang->security->menu->whitelist   = '白名單管理|guarder|setwhitelist|';
 $lang->security->menu->sensitive   = '敏感詞設置|site|setsensitive|';
 $lang->security->menu->captcha     = '驗證碼設置|guarder|setcaptcha|';
 $lang->security->menu->upload      = '附件上傳|site|setupload|';
-$lang->security->menu->admin       = '管理員|user|admin|admin=1';
+$lang->security->menu->admin       = array('link' => '管理員|user|admin|admin=1', 'alias' => 'delete,batchdelete');
 $lang->security->menu->group       = array('link' => '分組權限|group|browse|', 'alias' => 'managepriv,managemember');
 $lang->security->menu->log         = '登錄日誌|user|adminlog|';
 
@@ -397,6 +390,7 @@ $lang->error->email        = '<strong>%s</strong>應當為合法的EMAIL。';
 $lang->error->phone        = '<strong>%s</strong>應當為合法的電話號碼。';
 $lang->error->mobile       = '<strong>%s</strong>應當為合法的手機號碼。';
 $lang->error->URL          = '<strong>%s</strong>應當為合法的URL。';
+$lang->error->IP           = '<strong>%s</strong>應當為合法的IP。';
 $lang->error->date         = '<strong>%s</strong>應當為合法的日期。';
 $lang->error->account      = '<strong>%s</strong>應當為字母和數字的組合，至少三位';
 $lang->error->passwordsame = '兩次密碼應當相等。';
@@ -416,7 +410,7 @@ $lang->pager->noRecord     = "暫時沒有記錄";
 $lang->pager->digest       = "共 <strong>%s</strong> 條記錄，%s <strong>%s/%s</strong> &nbsp; ";
 $lang->pager->recPerPage   = "每頁 <strong>%s</strong> 條";
 $lang->pager->first        = "<i class='icon-step-backward' title='首頁'></i>";
-$lang->pager->pre          = "<i class='icon-play icon-rotate-180' title='上一頁'></i>";
+$lang->pager->pre          = "<i class='icon icon-play icon-rotate-180' title='上一頁'></i>";
 $lang->pager->next         = "<i class='icon-play' title='下一頁'></i>";
 $lang->pager->last         = "<i class='icon-step-forward' title='末頁'></i>";
 $lang->pager->locate       = "GO!";
@@ -429,16 +423,16 @@ $lang->date->minute = '分鐘';
 $lang->date->day    = '天';
 
 /* The datetime settings. */
-define('DT_DATETIME1',  'Y-m-d H:i:s');
-define('DT_DATETIME2',  'y-m-d H:i');
-define('DT_MONTHTIME1', 'n/d H:i');
-define('DT_MONTHTIME2', 'n月d日 H:i');
-define('DT_DATE1',     'Y年m月d日');
-define('DT_DATE2',     'Ymd');
-define('DT_DATE3',     'Y年m月d日');
-define('DT_DATE4',     'Y-m-d');
-define('DT_TIME1',     'H:i:s');
-define('DT_TIME2',     'H:i');
+if(!defined('DT_DATETIME1'))  define('DT_DATETIME1',  'Y-m-d H:i:s');
+if(!defined('DT_DATETIME2'))  define('DT_DATETIME2',  'y-m-d H:i');
+if(!defined('DT_MONTHTIME1')) define('DT_MONTHTIME1', 'n/d H:i');
+if(!defined('DT_MONTHTIME2')) define('DT_MONTHTIME2', 'n月d日 H:i');
+if(!defined('DT_DATE1'))      define('DT_DATE1',     'Y年m月d日');
+if(!defined('DT_DATE2'))      define('DT_DATE2',     'Ymd');
+if(!defined('DT_DATE3'))      define('DT_DATE3',     'Y年m月d日');
+if(!defined('DT_DATE4'))      define('DT_DATE4',     'Y-m-d');
+if(!defined('DT_TIME1'))      define('DT_TIME1',     'H:i:s');
+if(!defined('DT_TIME2'))      define('DT_TIME2',     'H:i');
 
 /* Keywords for chanzhi. */
 $lang->k  = '開源 cms — 首選蟬知建站系統;';

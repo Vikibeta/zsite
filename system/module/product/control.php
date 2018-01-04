@@ -45,16 +45,15 @@ class product extends control
      */
     public function browse($categoryID = 0, $pageID = 1)
     {  
-        $category = $this->loadModel('tree')->getByID($categoryID, 'product');
-
+        $category   = $this->loadModel('tree')->getByID($categoryID, 'product');
+        $categoryID = is_numeric($categoryID) ? $categoryID : zget($category, 'id', 0);
         if($category && $category->link) helper::header301($category->link);
 
         $recPerPage = !empty($this->config->site->productRec) ? $this->config->site->productRec : $this->config->product->recPerPage;
         $this->app->loadClass('pager', $static = true);
         $pager = new pager(0, $recPerPage, $pageID);
 
-        $categoryID = is_numeric($categoryID) ? $categoryID : ($category ? $category->id : 0);
-        $orderBy    = zget($_COOKIE, 'productOrderBy' . $categoryID, 'order_desc');
+        $orderBy    = isset($_COOKIE['productOrderBy'][$categoryID]) ? $_COOKIE['productOrderBy'][$categoryID] : 'order_desc';
         $orderField = str_replace('_asc', '', $orderBy);
         $orderField = str_replace('_desc', '', $orderField);
         if(!in_array($orderField, array('id', 'views', 'order'))) $orderBy = 'order_desc';
@@ -68,24 +67,21 @@ class product extends control
         {
             $category = new stdclass();
             $category->id       = 0;
-            $category->name     = $this->lang->product->home;
-            $category->alias    = '';
-            $category->keywords = '';
             $category->desc     = '';
+            $category->alias    = '';
+            $category->name     = $this->lang->product->home;
+            $category->keywords = '';
         }
 
-        $title    = $category->name;
-        $keywords = (!empty($category->keywords) ? ($category->keywords . ' - ') : '') . $this->config->site->keywords;
-        $desc     = strip_tags($category->desc) . ' ';
         $this->session->set('productCategory', $category->id);
 
         $productList = '';
         foreach($products as $product) $productList .= $product->id . ',';
         $this->view->productList = $productList;
 
-        $this->view->title      = $title;
-        $this->view->keywords   = trim($keywords);
-        $this->view->desc       = $desc;
+        $this->view->title      = $category->name;
+        $this->view->keywords   = trim($category->keywords);
+        $this->view->desc       = strip_tags($category->desc) . ' ';
         $this->view->category   = $category;
         $this->view->products   = $products;
         $this->view->pager      = $pager;
@@ -203,7 +199,6 @@ class product extends control
 
         $product = $this->product->getByID($productID);
 
-        $product = $this->loadModel('file')->replaceImgURL($product, $this->config->product->editor->edit['id']);
         if(empty($product->attributes))
         {
             $attribute = new stdclass();
@@ -270,13 +265,9 @@ class product extends control
         }
         $category = $this->loadModel('tree')->getByID($category, 'product');
 
-        $title    = $product->name . ' - ' . $category->name;
-        $keywords = (!empty($product->keywords) ? ($product->keywords . ' - ') : '') . (!empty($category->keywords) ? ($category->keywords . ' - ') : '') . $this->config->site->keywords;
-        $desc     = strip_tags($product->desc);
-        
-        $this->view->title       = $title;
-        $this->view->keywords    = $keywords;
-        $this->view->desc        = $desc;
+        $this->view->title       = $product->name . ' - ' . $category->name;
+        $this->view->keywords    = trim(trim($product->keywords . ' - ' . $category->keywords), '-');
+        $this->view->desc        = strip_tags($product->desc);
         $this->view->product     = $product;
         $this->view->prevAndNext = $this->product->getPrevAndNext($product->order, $category->id);
         $this->view->category    = $category;
@@ -375,8 +366,6 @@ class product extends control
      */
     public function setting()
     {
-        unset($this->lang->product->menu);
-        $this->lang->product->menu = $this->lang->orderSetting->menu;
         $this->lang->menuGroups->product = 'orderSetting';
         if(commonModel::isAvailable('shop')) $this->app->loadLang('order');
         if($_POST)

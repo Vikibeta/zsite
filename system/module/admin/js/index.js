@@ -1,8 +1,7 @@
 $(document).ready(function()
 {
-    $.cookie('currentGroup', 'home', {expires:config.cookieLife, path:config.webRoot});
+    $.cookie('currentGroup', 'home', {expires:config.cookieLife, path:config.cookiePath});
 });
-
 
 /**
  * index new order module,finisher button
@@ -23,7 +22,6 @@ $(document).ready(function()
         return true;
     });
 });
-
 
 /**
  * Delete widget.

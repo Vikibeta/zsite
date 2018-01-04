@@ -20,6 +20,8 @@ foreach (explode('|', $lang->colorPlates) as $value)
 {
     $colorPlates .= "<div class='color color-tile' data='#" . $value . "'><i class='icon-ok'></i></div>";
 }
+$gdInstalled = extension_loaded('gd') ? 1 : 0;
+js::set('gdInstalled', $gdInstalled);
 ?>
 <form method='post' id='ajaxForm' enctype='multipart/form-data'>
   <div class='panel' id='mainPanel'>
@@ -69,6 +71,12 @@ foreach (explode('|', $lang->colorPlates) as $value)
             <tr>
               <th class='w-120px'><?php echo $lang->site->customizableList->blog;?></th> 
               <td class='w-p30'><?php echo html::input('blogRec', !empty($this->config->site->blogRec) ? $this->config->site->blogRec : $this->config->blog->recPerPage, "class='form-control'");?></td><td></td>
+            </tr>
+            <?php endif;?>
+            <?php if(strpos($this->config->site->modules, 'book') !== false):?>
+            <tr>
+              <th class='w-120px'><?php echo $lang->site->customizableList->book;?></th> 
+              <td class='w-p30'><?php echo html::input('bookRec', !empty($this->config->site->bookRec) ? $this->config->site->bookRec : $this->config->book->recPerPage, "class='form-control'");?></td><td></td>
             </tr>
             <?php endif;?>
             <?php if(strpos($this->config->site->modules, 'message') !== false):?>
@@ -178,6 +186,15 @@ foreach (explode('|', $lang->colorPlates) as $value)
 
         <div class='tab-pane setting-control-tab-pane' id='watermarkTab'>
           <table class='table table-form w-p65'>
+            <?php if(!$gdInstalled):?>
+            <tr class='gd-check'>
+              <td>
+                <p class='text-danger'><?php echo $lang->ui->gdTip;?></p>
+                <p><?php echo html::a($config->ui->gdHelpLink, $lang->ui->gdHelp, "target='_blank'")?></p>
+              </td>
+            </tr>
+            <?php else:?>
+
             <!--watermark open or close -->
             <tr>
               <th class='w-120px'><?php echo $lang->file->watermark;?></th>
@@ -196,15 +213,16 @@ foreach (explode('|', $lang->colorPlates) as $value)
             <tr class='watermark-info <?php echo $waterHide;?>'>
               <th class='w-120px'><?php echo $lang->color;?></th> 
               <td class='w-p30'>
-                <div class="input-group">
-                  <?php echo html::input('files[watermarkColor]', isset($this->config->file->watermarkColor) ? $this->config->file->watermarkColor : '', "class='form-control input-color text-latin' placeholder='" . $lang->colorTip . "'");?>
-                  <div class='input-group-btn'>
-                    <button type='button' class='btn dropdown-toggle' data-toggle='dropdown'>
-                      <span class='caret'></span>
-                    </button>
-                    <div class='dropdown-menu colors'>
-                      <?php echo $colorPlates; ?>
-                    </div>
+                <div class='colorplate clearfix'>
+                  <?php $watermarkColor = !empty($this->config->file->watermarkColor) ? $this->config->file->watermarkColor : '#fff';?>
+                  <div class='input-group color ctive' data='<?php echo $watermarkColor;?>'>
+                    <?php echo html::input('files[watermarkColor]', $watermarkColor, "class='form-control input-color text-latin' placeholder='" . $lang->colorTip . "'");?>
+                    <span class='input-group-btn'>
+                      <button type='button' class='btn dropdown-toggle' data-toggle='dropdown'> <i class='icon icon-question'></i> <span class='caret'></span></button>
+                      <div class='dropdown-menu colors'>
+                        <?php echo $colorPlates; ?>
+                      </div>
+                    </span>
                   </div>
                 </div>
               </td>
@@ -246,7 +264,7 @@ foreach (explode('|', $lang->colorPlates) as $value)
                 <div class='alert alert-info' style='margin: 1px;'><?php printf($lang->file->fontPosition, $fontsPath);?></div>
               </td>
             </tr>
-
+            <?php endif;?>
           </table>
         </div>
       </div>

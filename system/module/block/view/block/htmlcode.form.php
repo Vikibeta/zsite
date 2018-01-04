@@ -10,8 +10,13 @@
  * @link        http://www.chanzhi.org
 */
 ?>
-<?php $content = (isset($block->content) and !is_object($block->content)) ? $block->content : (isset($block->content->content) ? $block->content->content : '');?>
-<?php $content = htmlspecialchars($content);?>
+<?php
+if(!isset($block)) $block = new stdclass();
+if(!isset($block->content)) $block->content = '';
+if(!is_object($block->content)) $content = $block->content;
+if(is_object($block->content))  $content = isset($block->content->content) ? $block->content->content : '';
+$content = htmlspecialchars($content);
+?>
 <tr>
   <th><?php echo $lang->block->htmlcode;?></th>
   <td><?php echo html::textarea('content', $content, "rows=20 class='form-control codeeditor' data-height='350'");?></td>

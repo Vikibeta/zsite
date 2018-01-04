@@ -36,18 +36,19 @@ class siteModel extends model
         $clearResult = array('result' => 'success', 'message' => '');
         $tmpRoot = $this->app->getTmpRoot();
         $cacheRoot = $tmpRoot . 'cache/'; 
-        if(!$this->deleteDir($cacheRoot)) $clearResult = array('result' => 'fail', 'message' => $this->lang->site->failClear);
+        if(!$this->deleteDir($cacheRoot, false)) $clearResult = array('result' => 'fail', 'message' => $this->lang->site->failClear);
         return $clearResult;
     }
 
     /**
-     * Delete dir
+     * Delete dir. 
      * 
+     * @param  string  $dir 
+     * @param  bool    $deleteSelf 
      * @access public
-     * @param  string
      * @return bool
      */
-    function deleteDir($dir) 
+    function deleteDir($dir, $deleteSelf = true) 
     {
         $dh = opendir($dir);
         while($file = readdir($dh)) 
@@ -65,13 +66,41 @@ class siteModel extends model
                 }
             }
         }
-
         closedir($dh);
-        if(rmdir($dir)) {
-            return true;
-        } else {
-            return false;
+
+        if(!$deleteSelf) return true; 
+        if(rmdir($dir))  return true;           
+        return false;
+    }
+
+    /**
+     * Check gzip.
+     * 
+     * @access public
+     * @return bool
+     */
+    public function checkGzip()
+    {
+        $url = $this->server->request_scheme . '://' . $this->server->http_host . helper::createLink('misc', 'ping');
+
+        $curl = curl_init();
+        curl_setopt($curl, CURLOPT_URL, $url);
+        curl_setopt($curl, CURLOPT_HEADER, TRUE);
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, TRUE);
+        curl_setopt($curl, CURLOPT_ENCODING, '');
+        $response = curl_exec($curl); 
+
+        if(!curl_errno($curl))
+        {
+            $info = curl_getinfo($curl);
+            $headerSize = $info['header_size'];
+            $headerInfo = substr($response, 0, $headerSize);
+
+            preg_match('/Content-Encoding: (.*)\s/i', $headerInfo, $matches);
+            if(isset($matches[1]) and trim($matches[1]) == 'gzip') return true;
         }
+
+        return false;
     }
 
     /**
@@ -113,8 +142,7 @@ class siteModel extends model
         if(is_writable($myFile) !== true)
         {
             $error = sprintf($this->lang->site->fileAuthority, 'chmod o=rwx ' . $myFile);
-            $errors['submit'] = $error;
-            return array('result' => 'fail', 'message' => $errors);
+            return array('result' => 'fail', 'message' => $error);
         }        
         else
         {

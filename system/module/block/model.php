@@ -26,8 +26,6 @@ class blockModel extends model
         if(strpos($block->type, 'code') === false) $block->content = json_decode($block->content);
         if(strpos($block->type, 'code') !== false) $block->content = is_null(json_decode($block->content)) ? $block->content : json_decode($block->content);
         if(empty($block->content)) $block->content = new stdclass();
-
-        $block->content = $this->loadModel('file')->replaceImgURL($block->content, 'content');
         return $block;
     }
 
@@ -100,10 +98,6 @@ class blockModel extends model
         }
 
         $blocks = $this->dao->select('*')->from(TABLE_BLOCK)->where('id')->in($blockIdList)->fetchAll('id');
-        foreach($blocks as $id => $block)
-        {
-            if($block->type == 'html') $blocks[$id]->content = json_encode($this->loadModel('file')->replaceImgURL(json_decode($block->content), 'content'));
-        }
 
         $layouts = array();
         foreach($rawLayouts as $page => $pageBlocks)
@@ -211,10 +205,6 @@ class blockModel extends model
         if(empty($regionBlocks)) return array();
 
         $blocks = $this->dao->select('*')->from(TABLE_BLOCK)->fetchAll('id');
-        foreach($blocks as $id => $block)
-        {
-            if($block->type == 'html') $blocks[$id]->content = json_encode($this->loadModel('file')->replaceImgURL(json_decode($block->content), 'content'));
-        }
 
         $sortedBlocks = array();
         foreach($regionBlocks as $block)
@@ -451,7 +441,6 @@ class blockModel extends model
     public function create($template, $theme)
     {
         $block = fixer::input('post')->add('template', $template)->stripTags('content', $this->config->block->allowedTags)->get();
-        $block = $this->loadModel('file')->processImgURL($block, $this->config->block->editor->create['id'], $this->post->uid);
 
         $block->content = helper::decodeXSS($block->content);
         $block->css     = helper::decodeXSS($block->css);
@@ -520,7 +509,6 @@ class blockModel extends model
         $block = $this->getByID($this->post->blockID);
 
         $data = fixer::input('post')->add('template', $template)->stripTags('content', $this->config->block->allowedTags)->get();
-        $data = $this->loadModel('file')->processImgURL($data, $this->config->block->editor->edit['id'], $this->post->uid);
         $data->params['customImage'] = $block->content->customImage;
 
         if($data->type == 'followUs' && $data->params['imageType'] == 'custom' && !empty($_FILES))
@@ -746,6 +734,7 @@ class blockModel extends model
      */
     public function parseBlockContent($block, $withGrid = false, $containerHeader, $containerFooter)
     {
+        $this->view = new stdclass();
         $withGrid = ($withGrid and isset($block->grid));
         $isRegion = isset($block->type) && $block->type === 'region';
         if($isRegion || !empty($block->children))
@@ -824,12 +813,13 @@ class blockModel extends model
 
             $content = is_object($block->content) ? $block->content : json_decode($block->content);
             if(isset($content->class)) $blockClass .= ' ' . $content->class;
+            $this->view->blockClass = $blockClass;
 
             if(isset($this->config->block->defaultIcons[$block->type]))
             {
                 $defaultIcon = $this->config->block->defaultIcons[$block->type];
-                $iconClass   = isset($content->icon) ? $content->icon : $defaultIcon;
-                $icon        = $iconClass ? "<i class='icon panel-icon {$iconClass}'></i> " : "" ;
+                $iconClass = isset($content->icon) ? $content->icon : $defaultIcon;
+                $this->view->icon      = $iconClass ? "<i class='icon panel-icon {$iconClass}'></i> " : "" ;
             }
 
             $style  = '<style>';
@@ -873,9 +863,8 @@ class blockModel extends model
             }
             $style .= '</style>';
             $script = !empty($content->custom->$theme->js) ? '<script>' . str_ireplace('#blockID', "#block{$block->id}", htmlspecialchars_decode($content->custom->$theme->js, ENT_QUOTES)) . "</script>" : '';
-
             echo $containerHeader;
-            if(file_exists($blockFile)) include $blockFile;
+            if(file_exists($blockFile)) echo $this->draw($blockFile, $block);
             echo $style;
             echo $script;
             echo $containerFooter;
@@ -1279,5 +1268,85 @@ class blockModel extends model
             ->andWhere('object')->eq($object)
             ->fetch('count');
         return $layout ? 'object' : 'global';
+    }
+
+    /**
+     * Use raintpl engin to draw one block.
+     * 
+     * @param  string    $viewFile 
+     * @access public
+     * @return string
+     */
+    public function draw($viewFile, $block)
+    {
+        /* Load smarty class and create smarty object. */
+        $this->tpl = $this->app->loadClass('raintpl');
+
+        $tplConfig = array();
+        $tplConfig["baseUrl"]        = null;
+        $tplConfig["tplDir"]         = TPL_ROOT;
+        $tplConfig["tplExt"]         = 'php';
+        $tplConfig["cacheDir"]       = $this->app->getTmpRoot() . 'cache' . DS . 'raintpl' . DS . $this->app->getClientDevice() . DS;
+        $tplConfig["debug"]          = $this->config->debug;
+        $tplConfig["removeComments"] = true;
+
+        $this->tpl->configure($tplConfig);
+
+        $this->tpl->assign('block', $block);
+        $this->assignCommon();
+
+        $raintpl = $this->tpl;
+
+        $this->tpl->configure('tplDir', dirname($viewFile) . DS);
+
+        foreach($this->view as $key => $value) $this->tpl->assign($key, $value);
+        return $this->tpl->draw($viewFile, true);
+    }
+
+    /**
+     * Assign common variables.
+     * 
+     * @access private
+     * @return void
+     */
+    private function assignCommon()
+    {
+        $this->tpl->assign('model', $this);
+
+        $this->tpl->assign('app', $this->app);
+        $this->tpl->assign('lang', $this->lang);
+        $this->tpl->assign('config', $this->config);
+        $this->tpl->assign('session', $this->session);
+
+        $device =  $this->app->getclientDevice();
+        $this->tpl->assign('device', $device);
+
+        if(!defined('CHANZHI_TEMPLATE'))
+        {
+            $template = $this->config->template->{$device}->name;
+            define('CHANZHI_TEMPLATE', $template);
+        }
+
+        if(!defined('CHANZHI_THEME'))
+        {
+            $theme = $this->config->template->{$device}->theme;
+            define('CHANZHI_THEME', $theme);
+        }
+
+        $this->tpl->assign('webRoot', $this->config->webRoot);
+        $this->tpl->assign('jsRoot',  $this->config->webRoot . 'js/');
+        $this->tpl->assign('themeRoot',  $this->config->webRoot . 'theme/' . CHANZHI_TEMPLATE . '/');
+        $this->tpl->assign('customCssFile', $this->loadModel('ui')->getCustomCssFile(CHANZHI_TEMPLATE, CHANZHI_THEME));
+        $this->tpl->assign('customCssURI', $this->loadModel('ui')->getThemeCssUrl(CHANZHI_TEMPLATE, CHANZHI_THEME));
+        $cdnRoot = ($this->config->cdn->open == 'open') ? (!empty($this->config->cdn->site) ? rtrim($this->config->cdn->site, '/') : $this->config->cdn->host . $this->config->version) : '';
+        $this->tpl->assign('cdnRoot', $cdnRoot);
+        $this->tpl->assign('sysURL', commonModel::getSysURL());
+
+        $this->tpl->assign('thisModuleName', $this->app->getModuleName());
+        $this->tpl->assign('thisMethodName', $this->app->getMethodName());
+        
+        $defaultFavicon =  file_exists($this->app->getWwwRoot() . 'favicon.ico') ? $this->config->webRoot . 'favicon.ico' : '';
+        $favicon = isset($this->config->site->favicon) ? json_decode($this->config->site->favicon)->webPath : $defaultFavicon;
+        $this->tpl->assign('favicon', $favicon);
     }
 }

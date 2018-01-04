@@ -50,14 +50,10 @@ class replyModel extends model
         $recPerPage = !empty($this->config->site->replyRec) ? $this->config->site->replyRec : $this->config->reply->recPerPage;
         $pageID     = (int)($replies / $recPerPage);
         
-        if($mode == 'anchor')
-        {
-            return array('pageID' => $pageID + 1, 'anchorID' => $replies + 2);
-        }
+        if($mode == 'anchor') return array('pageID' => $pageID + 1, 'anchorID' => $reply->id);
 
-        $position = $pageID ? "pageID=" . ($pageID + 1) . "&replyID=$replyID" : "replyID=$replyID";
-
-        return $position;
+        if($this->config->requestType == 'GET') return $pageID ? "&pageID=" . ($pageID + 1) . "#$replyID" : "#$replyID";
+        if($this->config->requestType != 'GET') return $pageID ? "&pageID=" . ($pageID + 1) . "&replyID=$replyID" : "replyID=$replyID";
     }
 
     /**
@@ -109,7 +105,6 @@ class replyModel extends model
                 $reply->content = str_replace('[quote]', "<div class='alert'>", $reply->content);
                 $reply->content = str_replace('[/quote]', '</div>', $reply->content);
             }
-            $reply = $this->file->replaceImgURL($reply, 'content');
         }
 
         return $replies;
@@ -289,10 +284,9 @@ class replyModel extends model
             ->setForce('editedDate', helper::now())
             ->setForce('thread', $threadID)
             ->stripTags('content', $allowedTags)
-            ->remove('recTotal, recPerPage, pageID, files, labels, hidden')
+            ->remove('files, labels, hidden')
             ->get();
 
-        $reply = $this->loadModel('file')->processImgURL($reply, 'content', $this->post->uid);
         if(strlen($reply->content) > 40)
         {
             $repeat = $this->loadModel('guarder')->checkRepeat($reply->content); 
@@ -363,7 +357,6 @@ class replyModel extends model
             ->remove('files,labels,hidden')
             ->get();
 
-        $reply = $this->loadModel('file')->processImgURL($reply, $this->config->reply->editor->edit['id'], $this->post->uid);
         if(isset($this->config->site->filterSensitive) and $this->config->site->filterSensitive == 'open')
         {
             $dicts = !empty($this->config->site->sensitive) ? $this->config->site->sensitive : $this->config->sensitive;
@@ -451,7 +444,7 @@ class replyModel extends model
             if($file->isImage)
             {
                 if($file->editor) continue;
-                $imagesHtml .= "<li class='file-image file-{$file->extension}'>" . html::a(helper::createLink('file', 'download', "fileID=$file->id&mose=left"), html::image("{$this->config->webRoot}file.php?pathname={$file->pathname}&objectType={$file->objectType}&imageSize=smallURL&extension={$file->extension}"), "target='_blank' data-toggle='lightbox'");
+                $imagesHtml .= "<li class='file-image file-{$file->extension}'>" . html::a(helper::createLink('file', 'download', "fileID=$file->id&mouse=left"), html::image($this->loadModel('file')->printFileURL($file->pathname, $file->extension, $file->objectType, 'smallURL')), "target='_blank' data-toggle='lightbox'");
                 if($canManage) $imagesHtml .= "<span class='file-actions'>" . html::a(helper::createLink('reply', 'deleteFile', "replyID=$reply->id&fileID=$file->id"), "<i class='icon-trash'></i>", "class='deleter'") . '</span>';
                 $imagesHtml .= '</li>';
             }
@@ -478,7 +471,7 @@ class replyModel extends model
         $reply = "$reply,";
         $cookie = $this->cookie->r != false ? $this->cookie->r : ',';
         if(strpos($cookie, $reply) === false) $cookie .= $reply;
-        setcookie('r', $cookie , time() + 60 * 60 * 24 * 30);
+        setcookie('r', $cookie , time() + 60 * 60 * 24 * 30, '', '', false, true);
     }
 
     /**

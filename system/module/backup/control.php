@@ -35,7 +35,6 @@ class backup extends control
     public function index()
     {
         $this->lang->menuGroups->backup = 'site';
-        $this->lang->backup->menu       = $this->lang->site->menu;
         
         $backups = array();
         if(empty($this->view->error))
@@ -59,16 +58,14 @@ class backup extends control
                         $backupFile->files[$this->backupPath . $backupFile->name . '.template.zip.php'] = abs(filesize($this->backupPath . $backupFile->name . '.template.zip.php'));
                     }
 
-
                     $backups[$backupFile->name] = $backupFile;
                 }
             }
         }
         krsort($backups);
 
-        $this->lang->backup->menu = $this->lang->site->menu;
-        $this->view->title      = $this->lang->backup->common;
-        $this->view->backups    = $backups;
+        $this->view->title   = $this->lang->backup->common;
+        $this->view->backups = $backups;
         $this->display();
     }
 

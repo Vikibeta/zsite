@@ -91,6 +91,27 @@ class treeModel extends model
     }
 
     /**
+     * Get id => abbr pairs of some categories.
+     * 
+     * @param  string $categories  the category lists
+     * @param  string $type        the type
+     * @access public
+     * @return array
+     */
+    public function getAbbrPairs($categories = '', $type = 'article')
+    {
+        $categories = $this->dao->select('id, abbr, name')->from(TABLE_CATEGORY)
+            ->where('1=1')
+            ->beginIF($categories)->andWhere('id')->in($categories)->fi()
+            ->beginIF($type)->andWhere('type')->eq($type)->fi()
+            ->fetchAll();
+
+        $categoryPairs = array();
+        foreach($categories as $category) $categoryPairs[$category->id] = !empty($category->abbr) ? $category->abbr : $category->name;
+        return $categoryPairs;
+    }
+
+    /**
      * Get origin of a category.
      * 
      * @param  int     $categoryID 
@@ -467,7 +488,6 @@ class treeModel extends model
         $parent = $this->getById($this->post->parent);
         $category->grade = $parent ? $parent->grade + 1 : 1;
 
-        $category = $this->loadModel('file')->processImgURL($category, $this->config->tree->editor->edit['id'], $this->post->uid);
         $this->dao->update(TABLE_CATEGORY)
             ->data($category, $skip = 'uid,isLink')
             ->autoCheck()
@@ -750,8 +770,7 @@ class treeModel extends model
     public function fixMenu($type = 'article')
     {
         $menuGroup = zget($this->config->tree->menuGroups, $type);
-        if(isset($this->lang->tree->adminLinks->$type)) unset($this->lang->tree->menu);
-        if(!isset($this->lang->tree->adminLinks->$type) and isset($this->lang->$menuGroup->menu)) $this->lang->tree->menu = $this->lang->$menuGroup->menu;
+        if(isset($this->lang->tree->adminLinks->$type)) unset($this->lang->$menuGroup->menu);
         $this->lang->menuGroups->tree = $menuGroup;
     }
 

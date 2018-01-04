@@ -35,6 +35,12 @@ class site extends control
             if(strpos($setting->modules, 'shop') !== false  && strpos($setting->modules, 'user') === false) $setting->modules = 'user,' . $setting->modules;
             if($setting->modules == 'initial') unset($setting->modules);
 
+            if($setting->gzipOutput == 'open')
+            {
+                if(!extension_loaded('zlib')) $this->send(array('result' => 'fail', 'message' => $this->lang->site->noZlib));
+                if($this->site->checkGzip()) $this->send(array('result' => 'fail', 'message' => $this->lang->site->gzipOn));
+            }
+
             $result = $this->loadModel('setting')->setItems('system.common.site', $setting);
             if(!$result) $this->send(array('result' => 'fail', 'message' => $this->lang->fail));
 
@@ -52,7 +58,6 @@ class site extends control
             $this->send(array('result' => 'success', 'message' => $this->lang->setSuccess, 'locate' => inlink('setbasic')));
         }
 
-        $this->config->site = $this->loadModel('file')->replaceImgURL($this->config->site, $this->config->site->editor->setbasic['id']);
         $this->view->title = $this->lang->site->common;
         $this->display();
     }
@@ -86,7 +91,6 @@ class site extends control
      */
     public function setSensitive($type = 'content')
     {
-        $this->lang->site->menu = $this->lang->security->menu;
         $this->lang->menuGroups->site = 'security';
 
         if(!empty($_POST))
@@ -143,7 +147,6 @@ class site extends control
      */
     public function setSecurity()
     {
-        $this->lang->site->menu = $this->lang->security->menu;
         $this->lang->menuGroups->site = 'security';
 
         $captcha        = (isset($this->config->site->captcha) and ($this->config->site->captcha == 'open' and ($this->post->captcha == 'close' or $this->post->captcha == 'auto')) or ((!isset($this->config->site->captcha) or $this->config->site->captcha == 'auto') and $this->post->captcha == 'close'));
@@ -228,7 +231,6 @@ class site extends control
      */
     public function setUpload()
     {
-        $this->lang->site->menu = $this->lang->security->menu;
         $this->lang->menuGroups->site = 'security';
 
         $this->loadModel('file');
@@ -279,7 +281,6 @@ class site extends control
     public function setOauth()
     {
         $this->lang->menuGroups->site = 'interface';
-        $this->lang->site->menu       = $this->lang->interface->menu;
         if(!empty($_POST))
         {
             $provider = $this->post->provider;
@@ -353,7 +354,6 @@ class site extends control
             $this->send(array('result' => 'success', 'message' => $this->lang->setSuccess));
         }
 
-        $this->lang->site->menu = $this->lang->security->menu;
         $this->lang->menuGroups->site = 'security';
 
         $this->view->title = $this->lang->site->setFilter;
@@ -588,13 +588,11 @@ class site extends control
         if(!empty($_POST))
         {
             $setting = fixer::input('post')->get();
-            $setting = $this->loadModel('file')->processImgURL($setting, $this->config->site->editor->setagreement['id'], $this->post->uid);
             $result  = $this->loadModel('setting')->setItems('system.common.site', $setting);
             if($result) $this->send(array('result' => 'success', 'message' => $this->lang->setSuccess, 'locate' => inlink('setagreement')));
             $this->send(array('result' => 'fail', 'message' => $this->lang->fail));
         }
 
-        $this->config->site = $this->loadModel('file')->replaceImgURL($this->config->site, $this->config->site->editor->setagreement['id']);
         $this->view->title = $this->lang->site->setAgreement;
         $this->display();
 

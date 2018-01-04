@@ -32,6 +32,7 @@ $lang->message->noSelectedMessage = 'You have not selected any message.';
 $lang->message->needCheck         = 'Message will be posted once reivewed.';
 $lang->message->showDetail        = 'Show all';
 $lang->message->hideDetail        = 'Hide';
+$lang->message->submit            = 'Submit';
 
 $lang->message->admin          = 'Backend Home';
 $lang->message->pass           = 'Pass';
@@ -39,7 +40,7 @@ $lang->message->reply          = 'Reply';
 $lang->message->view           = 'View';
 $lang->message->manage         = 'Message Admin';
 $lang->message->delete         = 'Delete';
-$lang->message->deleteSelected = 'Delete the selected';
+$lang->message->deleteSelected = 'Delete';
 $lang->message->passPre        = 'Pass Prev';
 $lang->message->deletePre      = 'Delete Prev';
 $lang->message->commentAt      = 'Posted on';
@@ -75,6 +76,7 @@ $lang->comment->viewComment  = 'Comment';
 $lang->comment->needCheck    = 'Comment will be posted once reviewed.';
 $lang->comment->receiveEmail = 'Email notification';
 
+$lang->comment->submit        = 'Submit';
 $lang->comment->pass          = 'Pass';
 $lang->comment->reply         = 'Reply';
 $lang->comment->replyAt       = 'Replied on';

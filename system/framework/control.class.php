@@ -83,7 +83,7 @@ class control extends baseControl
      */
     public function setTplRoot()
     {
-        if(!defined('TPL_ROOT')) define('TPL_ROOT', $this->app->getWwwRoot() . 'template' . DS . $this->config->template->{$this->app->clientDevice}->name . DS);
+        if(!defined('TPL_ROOT')) define('TPL_ROOT', $this->app->getAppRoot() . 'template' . DS . $this->config->template->{$this->app->clientDevice}->name . DS);
     }
 
     /**
@@ -108,7 +108,7 @@ class control extends baseControl
 
         if(RUN_MODE == 'front')
         {
-            $templatePath = $this->app->getWwwRoot() . 'template' . DS . $this->config->template->{$this->app->clientDevice}->name . DS . $moduleName;
+            $templatePath = TPL_ROOT . $moduleName;
             $viewFile     = str_replace(($this->app->getModulePath('', $moduleName) . 'view'), $templatePath, $viewFile);
             
             if($this->devicePrefix == 'm.' and !is_file($viewFile))
@@ -118,7 +118,7 @@ class control extends baseControl
             $mainViewFile = $viewFile;
 
             $tmpViewFolder = $this->config->framework->multiSite ? $this->app->getTmpRoot() . 'template' . DS . $this->app->siteCode : $this->app->getTmpRoot() . 'template';
-            $customedFile  = str_replace($this->app->getWwwRoot() . 'template', $tmpViewFolder, $mainViewFile);
+            $customedFile  = str_replace($this->app->getAppRoot() . 'template', $tmpViewFolder, $mainViewFile);
             if(file_exists($customedFile))
             {
                 $viewFile     = $customedFile;  
@@ -297,6 +297,7 @@ class control extends baseControl
 
         if($this->viewType == 'json') return $this->parseJSON($moduleName, $methodName);
 
+        $this->parseCssAndJs($moduleName, $methodName);
         /* If the parser is default or run mode is admin, install, upgrade, call default parser.  */
         if(RUN_MODE != 'front' or $this->config->template->parser == 'default')
         {
@@ -314,7 +315,8 @@ class control extends baseControl
         if(!class_exists($parserClassName)) $this->app->triggerError(" Can not find class : $parserClassName not found in $parserClassFile <br/>", __FILE__, __LINE__, $exit = true);
 
         $parser = new $parserClassName($this);
-        return $parser->parse($moduleName, $methodName);
+        $this->output = $parser->parse($moduleName, $methodName);
+        return $this->output;
     }
 
     /**
@@ -332,6 +334,34 @@ class control extends baseControl
         $viewFile = $results;
         if(is_array($results)) extract($results);
 
+        $this->parseCssAndJs($moduleName, $methodName);
+
+        /* Change the dir to the view file to keep the relative pathes work. */
+        $currentPWD = getcwd();
+        chdir(dirname($viewFile));
+
+        extract((array)$this->view);
+
+        ob_start();
+        include $viewFile;
+        if(isset($hookFiles)) foreach($hookFiles as $hookFile) if(file_exists($hookFile)) include $hookFile;
+        $this->output .= ob_get_contents();
+        ob_end_clean();
+
+        /* At the end, chang the dir to the previous. */
+        chdir($currentPWD);
+    }
+
+    /**
+     * parseCssAndJs 
+     * 
+     * @param  int    $moduleName 
+     * @param  int    $methodName 
+     * @access public
+     * @return void
+     */
+    public function parseCssAndJs($moduleName, $methodName)
+    {
         /* Get css and js. */
         $css = $this->getCSS($moduleName, $methodName);
         $js  = $this->getJS($moduleName, $methodName);
@@ -378,21 +408,7 @@ class control extends baseControl
 
         if($css) $this->view->pageCSS = $css;
         if($js)  $this->view->pageJS  = $js;
-        
-        /* Change the dir to the view file to keep the relative pathes work. */
-        $currentPWD = getcwd();
-        chdir(dirname($viewFile));
-
-        extract((array)$this->view);
-
-        ob_start();
-        include $viewFile;
-        if(isset($hookFiles)) foreach($hookFiles as $hookFile) if(file_exists($hookFile)) include $hookFile;
-        $this->output .= ob_get_contents();
-        ob_end_clean();
-
-        /* At the end, chang the dir to the previous. */
-        chdir($currentPWD);
+    
     }
 
     /**
@@ -412,12 +428,6 @@ class control extends baseControl
             $this->output = cn2tw::translate($this->output);
         }
 
-        if(RUN_MODE == 'front') 
-        {
-            $this->mergeCSS();
-            $this->mergeJS();
-        }
-        
         $moduleName = $this->moduleName;
         $methodName = $this->methodName;
         if(RUN_MODE == 'front')
@@ -461,9 +471,29 @@ class control extends baseControl
 
             /* Hide execinfo if output has no powerby btn. */
             if($this->config->site->execInfo == 'show') $this->output = str_replace($this->config->execPlaceholder, helper::getExecInfo(), $this->output);
+
+            if($this->moduleName != 'source' and in_array($this->viewType, array('html', 'mhtml'))) 
+            {
+                $this->mergeCSS();
+                $this->mergeJS();
+            }
+
         }
 
-        echo $this->output;
+
+        if(!headers_sent()
+            && isset($this->config->site->gzipOutput) && $this->config->site->gzipOutput == 'open'
+            && extension_loaded('zlib')
+            && strstr($_SERVER["HTTP_ACCEPT_ENCODING"], "gzip")
+            && !zget($this->config, 'inFetch')
+            && $moduleName != 'misc' && $methodName != 'ping')
+        {
+            $this->output = gzencode($this->output, 9);
+            header('Content-Encoding: gzip');
+        }
+
+        If(RUN_MODE == 'front') $this->output = $this->app->loadClass('cleanoutput')->clean($this->output);
+		echo $this->output;
     }
 
     /**
@@ -552,7 +582,7 @@ class control extends baseControl
     public function loadThemeHooks()
     {
         $theme     = $this->config->template->{$this->app->clientDevice}->theme;
-        $hookPath  = $this->app->getWwwRoot() . 'theme' . DS . $this->config->template->{$this->app->clientDevice}->name. DS . $theme . DS;
+        $hookPath  = $this->app->getWwwRoot() . 'theme' . DS . $this->config->template->{$this->app->clientDevice}->name . DS . $theme . DS;
         $hookFiles = glob("{$hookPath}*.php");
 
         if(empty($hookFiles)) return array();
@@ -571,12 +601,40 @@ class control extends baseControl
         $pageCSS = '';
         preg_match_all('/<style>([\s\S]*?)<\/style>/', $this->output, $styles);
         if(!empty($styles[1])) $pageCSS = join('', $styles[1]);
+
         if(!empty($pageCSS))
         {
             $this->output = str_replace("</style>\n", '</style>', $this->output);
             $this->output = preg_replace('/<style>([\s\S]*?)<\/style>/', '', $this->output);
-            if(strpos($this->output, '</head>') != false) $this->output = str_replace('</head>', "<style>{$pageCSS}</style></head>", $this->output);
-            if(strpos($this->output, '</head>') == false) $this->output = "<style>{$pageCSS}</style>" . $this->output;
+        }
+		
+		$params = $this->app->getParams();
+		$params['module'] = $this->moduleName;
+		$params['method'] = $this->methodName;
+        $params['device'] = $this->clientDevice;
+        $params['lang']   = $this->app->getClientLang();
+        $page = md5(http_build_query($params));
+        $key  = strtolower("/css/{$page}");
+
+        if($this->config->cache->type == 'close')
+        {
+            $cachePath = $this->app->getTmpRoot() . 'cache' . DS . $this->app->getClientLang() . DS . 'css';
+            if(!is_dir($cachePath)) mkdir($cachePath, 0777, true);
+            file_put_contents($cachePath . DS . $page . ".css", $pageCSS);
+        }
+        else
+        {
+            $this->app->cache->set($key, $pageCSS);
+        }
+
+        if($this->config->debug) $this->config->site->updatedTime = time();
+        $sourceURL  = helper::createLink('source', 'css', "page=$page&version={$this->config->site->updatedTime}", '', 'css');
+        $importHtml = "<link rel='stylesheet' href='$sourceURL' type='text/css' media='screen' />\n";
+
+        if(strpos($this->output, $importHtml) === false)
+        {
+            if(strpos($this->output, '</head>') != false) $this->output = str_replace('</head>', "{$importHtml}</head>", $this->output);
+            if(strpos($this->output, '</head>') == false) $this->output = $importHtml . $this->output;
         }
     }
 
@@ -592,17 +650,45 @@ class control extends baseControl
         preg_match_all('/<script>([\s\S]*?)<\/script>/', $this->output, $scripts);
         if(empty($scripts[1][1])) return true;
         $configCode = $scripts[1][0] . $scripts[1][1];
+
         unset($scripts[1][1]);
         unset($scripts[1][0]);
-        
+
         if(!empty($scripts[1])) $pageJS = join(';', $scripts[1]);
+
+   		$params = $this->app->getParams();
+		$params['module'] = $this->moduleName;
+		$params['method'] = $this->methodName;
+        $params['device'] = $this->clientDevice;
+        $params['lang']   = $this->app->getClientLang();
+        $page = md5(http_build_query($params));
+        $key  = strtolower("/js/{$page}");
+
+        if($this->config->cache->type == 'close')
+        {
+            $cachePath = $this->app->getTmpRoot() . 'cache' . DS . $this->app->getClientLang() . DS . 'js';
+            if(!is_dir($cachePath)) mkdir($cachePath, 0777, true);
+            file_put_contents($cachePath . DS . $page . ".js", $pageJS);
+        }
+        else
+        {
+            $this->app->cache->set($key, $pageJS);
+        }
+
+        $sourceURL  = helper::createLink('source', 'js', "page=$page&version={$this->config->site->updatedTime}", '', 'js');
+        $importHtml =  "<script src='{$sourceURL}' type='text/javascript'></script>\n";
+
         if(!empty($pageJS))
         {
             $this->output = str_replace("</script>\n", '</script>', $this->output);
             $this->output = preg_replace('/<script>([\s\S]*?)<\/script>/', '', $this->output);
-            if(strpos($this->output, '</body>') != false) $this->output = str_replace('</body>', "<script>{$pageJS}</script></body>", $this->output);
-            if(strpos($this->output, '</body>') == false) $this->output .= "<script>$pageJS</script>";
+            if(strpos($this->output, $importHtml) === false)
+            {
+                if(strpos($this->output, '</body>') != false) $this->output = str_replace('</body>', "{$importHtml}</body>", $this->output);
+                if(strpos($this->output, '</body>') == false) $this->output .= $importHtml;
+            }
         }
+
         $pos = strpos($this->output, '<script src=');
         $this->output = substr_replace($this->output, '<script>' . $configCode . '</script>', $pos) . substr($this->output, $pos);
         return true;
